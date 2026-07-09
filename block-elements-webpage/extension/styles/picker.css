@@ -1,0 +1,272 @@
+/* picker.css — injected into page when picker is active */
+
+#ef-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 2147483640;
+  pointer-events: none;
+}
+
+#ef-highlight {
+  position: fixed;
+  z-index: 2147483641;
+  pointer-events: none;
+  box-sizing: border-box;
+  outline: 2px solid #4f46e5;
+  background: rgba(79, 70, 229, 0.12);
+  transition: all 0.05s ease;
+}
+
+#ef-tooltip {
+  position: fixed;
+  z-index: 2147483642;
+  pointer-events: none;
+  background: #1e1b4b;
+  color: #c7d2fe;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+#ef-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2147483643;
+  width: 340px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  color: #1f2937;
+  overflow: hidden;
+}
+
+#ef-panel .ef-panel-header {
+  background: #4f46e5;
+  color: white;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#ef-panel .ef-panel-header button {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+}
+
+#ef-panel .ef-panel-header button:hover {
+  color: white;
+}
+
+#ef-panel .ef-panel-body {
+  padding: 16px;
+}
+
+#ef-panel .ef-field {
+  margin-bottom: 12px;
+}
+
+#ef-panel .ef-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+#ef-panel .ef-site-value {
+  font-weight: 500;
+  color: #111827;
+}
+
+#ef-panel .ef-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#ef-panel .ef-radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.1s;
+}
+
+#ef-panel .ef-radio-group label:hover {
+  background: #f3f4f6;
+}
+
+#ef-panel .ef-radio-group input[type='radio'] {
+  accent-color: #4f46e5;
+}
+
+#ef-panel .ef-selector-box {
+  background: #f8f9ff;
+  border: 1px solid #e0e7ff;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #3730a3;
+  word-break: break-all;
+  min-height: 32px;
+}
+
+#ef-panel .ef-selector-edit {
+  width: 100%;
+  box-sizing: border-box;
+  background: #f8f9ff;
+  border: 1px solid #e0e7ff;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #3730a3;
+  resize: vertical;
+  min-height: 56px;
+  outline: none;
+}
+
+#ef-panel .ef-selector-edit:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+}
+
+#ef-panel .ef-slider-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#ef-panel .ef-slider-label {
+  font-size: 10px;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+#ef-panel .ef-slider {
+  flex: 1;
+  accent-color: #4f46e5;
+  cursor: pointer;
+}
+
+#ef-panel .ef-match-count {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 6px;
+}
+
+#ef-panel .ef-match-count.ef-warning {
+  color: #d97706;
+}
+
+#ef-panel .ef-match-count.ef-error {
+  color: #dc2626;
+}
+
+#ef-panel .ef-unstable-warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: #92400e;
+  margin-top: 8px;
+}
+
+#ef-panel .ef-panel-footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #f3f4f6;
+  background: #fafafa;
+}
+
+#ef-panel .ef-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.1s;
+}
+
+#ef-panel .ef-btn-primary {
+  background: #4f46e5;
+  color: white;
+}
+
+#ef-panel .ef-btn-primary:hover {
+  background: #4338ca;
+}
+
+#ef-panel .ef-btn-primary:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+#ef-panel .ef-btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+#ef-panel .ef-btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+#ef-panel .ef-btn-ghost {
+  background: none;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+
+#ef-panel .ef-btn-ghost:hover {
+  background: #f9fafb;
+}
+
+#ef-panel .ef-success-msg {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #166534;
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+  margin-bottom: 8px;
+}
+
+/* Preview highlight */
+.ef-preview-hidden {
+  visibility: hidden !important;
+}
+
+/* cursor when picker is active */
+body.ef-picking * {
+  cursor: crosshair !important;
+}

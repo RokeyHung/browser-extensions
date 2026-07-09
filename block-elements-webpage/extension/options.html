@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Element Filter — Manage Filters</title>
+    <link rel="stylesheet" href="styles/popup.css" />
+    <style>
+      body {
+        min-width: 700px;
+      }
+      .page-header {
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        color: white;
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .page-header .header-logo {
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+      }
+      .page-header h1 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .page-header .subtitle {
+        margin: 0;
+        font-size: 12px;
+        opacity: 0.75;
+      }
+    </style>
+  </head>
+  <body class="options-body">
+    <div class="page-header">
+      <div class="header-logo">F</div>
+      <div>
+        <h1>Element Filter</h1>
+        <p class="subtitle">Manage your custom filters</p>
+      </div>
+    </div>
+
+    <div class="options-layout">
+      <div class="options-header">
+        <h2>Custom Filters</h2>
+        <div class="options-header-actions">
+          <span class="options-stats" id="stats-label"></span>
+          <div class="btn-group">
+            <button class="action-btn action-btn-danger" id="btn-clear-all">🗑 Clear All</button>
+            <button class="action-btn" id="btn-import">⬆ Import</button>
+            <div class="export-wrap">
+              <button class="action-btn action-btn-primary" id="btn-export">⬇ Export</button>
+              <div class="export-dropdown" id="export-dropdown">
+                <button id="export-json">Export as JSON</button>
+                <button id="export-text">Export as text (.txt)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- hidden file input for import -->
+      <input type="file" id="import-file-input" accept=".json,.txt" style="display: none" />
+
+      <div class="filter-bar">
+        <input type="text" class="filter-search" id="search-input" placeholder="Search by domain or selector…" />
+      </div>
+
+      <div id="rules-container"></div>
+    </div>
+
+    <!-- Edit modal -->
+    <div class="modal-backdrop" id="edit-modal" style="display: none">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Edit Filter</h3>
+          <button class="icon-btn" id="edit-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-field">
+            <label class="form-label">Domain pattern</label>
+            <input type="text" class="form-input" id="edit-domain" placeholder="e.g. example.com or *.example.*" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">CSS Selector</label>
+            <input type="text" class="form-input mono" id="edit-selector" placeholder="e.g. .ad-banner" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">Hide mode</label>
+            <select class="form-select" id="edit-hidemode">
+              <option value="display-none">display: none (default)</option>
+              <option value="visibility-hidden">visibility: hidden</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label class="form-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer">
+              <input type="checkbox" id="edit-enabled" /> Enabled
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn modal-btn-ghost" id="edit-cancel">Cancel</button>
+          <button class="modal-btn modal-btn-primary" id="edit-save">Save changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete confirm modal -->
+    <div class="modal-backdrop" id="delete-modal" style="display: none">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Delete filter?</h3>
+          <button class="icon-btn" id="delete-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="margin: 0; color: #374151">This action cannot be undone. The element will reappear on next page load.</p>
+          <div class="confirm-msg" id="delete-rule-str"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn modal-btn-ghost" id="delete-cancel">Cancel</button>
+          <button class="modal-btn modal-btn-danger" id="delete-confirm">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clear All confirm modal -->
+    <div class="modal-backdrop" id="clear-modal" style="display: none">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Clear all filters?</h3>
+          <button class="icon-btn" id="clear-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="margin: 0 0 10px; color: #374151">
+            This will permanently delete <strong id="clear-count"></strong>. All blocked elements will reappear on next page load.
+          </p>
+          <p style="margin: 0; font-size: 12px; color: #9ca3af">Tip: export your rules first if you want to keep a backup.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn modal-btn-ghost" id="clear-cancel">Cancel</button>
+          <button class="modal-btn modal-btn-danger" id="clear-confirm">Delete all</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import result modal -->
+    <div class="modal-backdrop" id="import-modal" style="display: none">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Import Filters</h3>
+          <button class="icon-btn" id="import-close">✕</button>
+        </div>
+        <div class="modal-body" id="import-modal-body">
+          <!-- filled by JS -->
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn modal-btn-ghost" id="import-cancel">Cancel</button>
+          <button class="modal-btn modal-btn-primary" id="import-confirm">Import</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="options.js"></script>
+  </body>
+</html>
