@@ -1,0 +1,84 @@
+{
+  "version": "1",
+  "exportedAt": "2026-07-10T03:09:16.097Z",
+  "rules": [
+    {
+      "action": "hide",
+      "createdAt": "2026-07-09T06:46:50.490Z",
+      "createdFromUrl": null,
+      "domainPattern": "animevietsub.*",
+      "enabled": true,
+      "hideMode": "display-none",
+      "id": "rule_1783579610490_21297",
+      "matchedCountAtCreation": null,
+      "pathPattern": null,
+      "selector": "div.pc_catfix_adv",
+      "updatedAt": "2026-07-09T06:46:50.490Z"
+    },
+    {
+      "action": "hide",
+      "createdAt": "2026-07-09T06:46:50.490Z",
+      "createdFromUrl": null,
+      "domainPattern": "animevietsub.*",
+      "enabled": true,
+      "hideMode": "display-none",
+      "id": "rule_1783579610490_94719",
+      "matchedCountAtCreation": null,
+      "pathPattern": null,
+      "selector": "div.header-ads-pc",
+      "updatedAt": "2026-07-09T06:46:50.490Z"
+    },
+    {
+      "action": "hide",
+      "createdAt": "2026-07-09T06:46:50.490Z",
+      "createdFromUrl": null,
+      "domainPattern": "animevietsub.*",
+      "enabled": true,
+      "hideMode": "display-none",
+      "id": "rule_1783579610490_88238",
+      "matchedCountAtCreation": null,
+      "pathPattern": null,
+      "selector": "div.Adv.ad-center-header",
+      "updatedAt": "2026-07-09T06:46:50.490Z"
+    },
+    {
+      "action": "hide",
+      "createdAt": "2026-07-09T06:46:50.490Z",
+      "createdFromUrl": null,
+      "domainPattern": "animevietsub.*",
+      "enabled": true,
+      "hideMode": "display-none",
+      "id": "rule_1783579610490_52003",
+      "matchedCountAtCreation": null,
+      "pathPattern": null,
+      "selector": "#_preload-ads-1",
+      "updatedAt": "2026-07-09T06:46:50.490Z"
+    },
+    {
+      "action": "hide",
+      "createdAt": "2026-07-09T06:46:50.490Z",
+      "createdFromUrl": null,
+      "domainPattern": "animevietsub.*",
+      "enabled": true,
+      "hideMode": "display-none",
+      "id": "rule_1783579610490_82739",
+      "matchedCountAtCreation": null,
+      "pathPattern": null,
+      "selector": "div.below-player",
+      "updatedAt": "2026-07-09T06:46:50.490Z"
+    },
+    {
+      "action": "hide",
+      "createdAt": "2026-07-09T06:46:50.490Z",
+      "createdFromUrl": null,
+      "domainPattern": "animevietsub.*",
+      "enabled": true,
+      "hideMode": "display-none",
+      "id": "rule_1783579610490_82654",
+      "matchedCountAtCreation": null,
+      "pathPattern": null,
+      "selector": "div.Ads.ads_player",
+      "updatedAt": "2026-07-09T06:46:50.490Z"
+    }
+  ]
+}
