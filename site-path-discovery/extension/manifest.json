@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Website Path Discovery",
+  "version": "1.0.0",
+  "description": "Discover page routes, API endpoints, assets and links of the current website from DOM, navigation, network, robots.txt, sitemap and a limited crawler.",
+  "permissions": ["activeTab", "scripting", "tabs", "storage", "webNavigation", "webRequest"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "dashboard.html",
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

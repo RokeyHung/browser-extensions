@@ -1,0 +1,239 @@
+/* popup.css — base + popup styles. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: #1f2937;
+  background: #fff;
+}
+
+body.popup-body {
+  width: 320px;
+  min-height: 200px;
+}
+
+/* ── Header ── */
+.header {
+  background: linear-gradient(135deg, #2563eb, #0891b2);
+  color: white;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-logo {
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.content {
+  padding: 16px;
+}
+
+/* ── Site info ── */
+.site-info {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.site-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.site-domain {
+  font-weight: 600;
+  color: #111827;
+  word-break: break-all;
+}
+
+/* ── Status row ── */
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.status-text {
+  font-size: 13px;
+}
+
+.status-on {
+  color: #059669;
+  font-weight: 700;
+}
+
+.status-off {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.badge {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+/* ── Stats grid ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.stat {
+  background: #f9fafb;
+  border: 1px solid #f3f4f6;
+  border-radius: 8px;
+  padding: 8px 4px;
+  text-align: center;
+}
+
+.stat-num {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.stat-lbl {
+  display: block;
+  font-size: 10px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-top: 2px;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s;
+  margin-bottom: 8px;
+}
+
+.btn:last-child {
+  margin-bottom: 0;
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: white;
+}
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.btn-danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+.btn-danger:hover {
+  background: #fee2e2;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-row .half {
+  flex: 1;
+  margin-bottom: 8px;
+}
+
+/* ── Unsupported ── */
+.unsupported-msg {
+  padding: 24px 16px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.unsupported-msg .icon {
+  font-size: 30px;
+  margin-bottom: 8px;
+}
+
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #fff;
+  background: #374151;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.toast-success {
+  background: #059669;
+}
+.toast-error {
+  background: #dc2626;
+}
