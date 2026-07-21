@@ -1,0 +1,21 @@
+{
+  "version": "1",
+  "type": "popup-redirect-guard-sites",
+  "exportedAt": "2026-07-21T06:17:48.458Z",
+  "sites": [
+    {
+      "sitePattern": "animevietsub.*",
+      "mode": "normal",
+      "enabled": true,
+      "includeRoot": true,
+      "settings": {
+        "blockExternalBlank": true,
+        "blockExternalFormSubmit": true,
+        "blockScriptedRedirect": true,
+        "blockWindowOpen": true,
+        "closeUnwantedNewTabs": true,
+        "showToast": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Popup Redirect Guard — Settings</title>
+    <link rel="stylesheet" href="styles/popup.css" />
+    <link rel="stylesheet" href="styles/options.css" />
+  </head>
+  <body class="options-body">
+    <div class="page-header">
+      <div class="header-logo">🛡</div>
+      <div>
+        <h1>Popup Redirect Guard</h1>
+        <p class="subtitle">Manage protected sites, allowlist and logs</p>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="tabs">
+        <button class="tab active" data-tab="sites">Protected Sites</button>
+        <button class="tab" data-tab="allow">Allowlist</button>
+        <button class="tab" data-tab="logs">Blocked Logs</button>
+        <button class="tab" data-tab="settings">Settings</button>
+      </div>
+
+      <!-- Protected Sites -->
+      <div class="tab-panel active" id="panel-sites">
+        <div class="panel-head">
+          <h2>Protected Sites</h2>
+          <div class="panel-actions">
+            <span class="muted" id="sites-status"></span>
+            <button class="action-btn" id="sites-import">⬆ Import</button>
+            <button class="action-btn action-btn-primary" id="sites-export">⬇ Export</button>
+          </div>
+        </div>
+        <input type="file" id="sites-file" accept=".json" style="display: none" />
+        <div id="sites-container"></div>
+      </div>
+
+      <!-- Allowlist -->
+      <div class="tab-panel" id="panel-allow">
+        <div class="panel-head">
+          <h2>Allowlist</h2>
+        </div>
+        <div class="inline-form">
+          <input type="text" id="allow-source" placeholder="Source pattern (e.g. animevietsub.*)" />
+          <input type="text" id="allow-domain" placeholder="Allowed domain (e.g. youtube.com)" />
+          <button class="action-btn action-btn-primary" id="allow-add">Add</button>
+        </div>
+        <div id="allow-container"></div>
+      </div>
+
+      <!-- Blocked Logs -->
+      <div class="tab-panel" id="panel-logs">
+        <div class="panel-head">
+          <h2>Blocked Logs</h2>
+          <div class="panel-actions">
+            <button class="action-btn" id="logs-export">⬇ Export</button>
+            <button class="action-btn action-btn-danger" id="logs-clear">🗑 Clear logs</button>
+          </div>
+        </div>
+        <div id="logs-container"></div>
+      </div>
+
+      <!-- Settings -->
+      <div class="tab-panel" id="panel-settings">
+        <div class="panel-head">
+          <h2>General Settings</h2>
+        </div>
+        <div class="settings-card" id="settings-container"></div>
+      </div>
+    </div>
+
+    <script src="modules/domain-matcher.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

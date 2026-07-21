@@ -1,0 +1,123 @@
+/* toast.css — injected into pages to render the "blocked" notification. */
+
+#prg-toast-host {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 2147483647;
+  pointer-events: none;
+}
+
+#prg-toast-host .prg-toast {
+  pointer-events: auto;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  background: #1f2937;
+  color: #f9fafb;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  padding: 12px 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  animation: prg-slide-in 0.18s ease-out;
+}
+
+@keyframes prg-slide-in {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+#prg-toast-host .prg-toast-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+#prg-toast-host .prg-toast-shield {
+  font-size: 15px;
+}
+
+#prg-toast-host .prg-toast-title {
+  font-weight: 600;
+  font-size: 13px;
+  flex: 1;
+}
+
+#prg-toast-host .prg-toast-x {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  line-height: 1;
+}
+
+#prg-toast-host .prg-toast-x:hover {
+  color: #f9fafb;
+}
+
+#prg-toast-host .prg-toast-domain {
+  font-weight: 600;
+  color: #fca5a5;
+  word-break: break-all;
+  margin-bottom: 2px;
+}
+
+#prg-toast-host .prg-toast-reason {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 10px;
+}
+
+#prg-toast-host .prg-toast-actions {
+  display: flex;
+  gap: 6px;
+}
+
+#prg-toast-host .prg-btn {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid #374151;
+  background: #374151;
+  color: #e5e7eb;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+
+#prg-toast-host .prg-btn:hover {
+  background: #4b5563;
+}
+
+#prg-toast-host .prg-btn-primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+#prg-toast-host .prg-btn-primary:hover {
+  background: #1d4ed8;
+}
+
+#prg-toast-host .prg-btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: #9ca3af;
+}
+
+#prg-toast-host .prg-btn-ghost:hover {
+  background: #374151;
+  color: #e5e7eb;
+}
