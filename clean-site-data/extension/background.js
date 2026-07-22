@@ -13,6 +13,10 @@ async function handleClean({ tabId, url, origin, options }) {
   const results = {};
 
   // 1. Cookies (via chrome.cookies API)
+  //    Cleared across the whole registrable domain (eTLD+1) — parent domain and
+  //    every subdomain — not just the exact hostname of the tab. This is what
+  //    actually logs you out of sites like Facebook, whose auth cookies live on
+  //    `.facebook.com` while the tab is on `www.facebook.com`.
   if (options.cookies) {
     results.cookies = await clearCookies(url);
   }
@@ -45,19 +49,22 @@ async function handleClean({ tabId, url, origin, options }) {
     }
   }
 
-  // 3. browsingData API as fallback/supplement for IndexedDB, Cache, SW
-  //    Runs after page injection to catch data the script may have missed
-  const browsingDataTypes = {};
-  if (options.indexedDB) browsingDataTypes.indexedDB = true;
-  if (options.cacheStorage) browsingDataTypes.cacheStorage = true;
-  if (options.serviceWorker) browsingDataTypes.serviceWorkers = true;
-  if (options.localStorage) browsingDataTypes.localStorage = true;
+  // 3. browsingData API scoped to the site's registrable domain.
+  //    Using `origins` makes Chrome clear data for the whole eTLD+1, catching
+  //    HttpOnly cookies, partitioned cookies and storage the page script cannot
+  //    reach. Runs after the page injection to catch anything left behind.
+  const dataToRemove = {};
+  if (options.cookies) dataToRemove.cookies = true;
+  if (options.localStorage) dataToRemove.localStorage = true;
+  if (options.indexedDB) dataToRemove.indexedDB = true;
+  if (options.cacheStorage) dataToRemove.cacheStorage = true;
+  if (options.serviceWorker) dataToRemove.serviceWorkers = true;
 
-  if (Object.keys(browsingDataTypes).length > 0) {
+  if (Object.keys(dataToRemove).length > 0) {
     try {
-      await chrome.browsingData.remove({ origins: [origin] }, browsingDataTypes);
+      await chrome.browsingData.remove({ origins: [origin] }, dataToRemove);
     } catch (_err) {
-      // browsingData is supplementary; page script already attempted these
+      // browsingData is supplementary; the steps above already attempted these
     }
   }
 
@@ -75,31 +82,94 @@ async function handleClean({ tabId, url, origin, options }) {
   return { results, reloaded };
 }
 
+// Effective TLDs that span 2+ labels. Used to derive the registrable domain
+// (eTLD+1) so we don't accidentally treat a public suffix as a real site.
+// Includes country-code second-level domains and popular hosting providers that
+// isolate each subdomain as a separate site.
+const EFFECTIVE_TLDS = new Set([
+  'co.uk',
+  'org.uk',
+  'me.uk',
+  'ac.uk',
+  'gov.uk',
+  'co.jp',
+  'ne.jp',
+  'or.jp',
+  'com.au',
+  'net.au',
+  'org.au',
+  'co.nz',
+  'com.br',
+  'com.cn',
+  'com.mx',
+  'co.in',
+  'co.kr',
+  'com.tr',
+  'com.sg',
+  'com.hk',
+  'com.tw',
+  'co.za',
+  'com.vn',
+  'com.ua',
+  'github.io',
+  'gitlab.io',
+  'pages.dev',
+  'vercel.app',
+  'netlify.app',
+  'web.app',
+  'firebaseapp.com',
+  'herokuapp.com',
+  'workers.dev',
+]);
+
+// Derive the registrable domain (eTLD+1) from a hostname.
+// e.g. www.facebook.com -> facebook.com, foo.example.co.uk -> example.co.uk
+function getBaseDomain(hostname) {
+  if (!hostname) return hostname;
+  // IPv4 / IPv6 / single-label hosts: use as-is
+  if (hostname.includes(':') || /^[\d.]+$/.test(hostname)) return hostname;
+
+  const parts = hostname.split('.');
+  if (parts.length <= 2) return hostname;
+
+  const last2 = parts.slice(-2).join('.');
+  const last3 = parts.slice(-3).join('.');
+  if (parts.length >= 4 && EFFECTIVE_TLDS.has(last3)) return parts.slice(-4).join('.');
+  if (EFFECTIVE_TLDS.has(last2)) return last3;
+  return last2;
+}
+
 async function clearCookies(url) {
   try {
     const { hostname } = new URL(url);
-    const domains = [hostname, `.${hostname}`];
-    const seen = new Set();
+    const baseDomain = getBaseDomain(hostname);
 
-    for (const domain of domains) {
-      const cookies = await chrome.cookies.getAll({ domain });
-      for (const cookie of cookies) {
-        const key = `${cookie.domain}::${cookie.path}::${cookie.name}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
+    // getAll({ domain }) returns cookies for `domain` AND all of its subdomains,
+    // which covers the parent-domain cookies (e.g. `.facebook.com`) that the
+    // per-hostname query used to miss.
+    const cookies = await chrome.cookies.getAll({ domain: baseDomain });
 
-        const scheme = cookie.secure ? 'https' : 'http';
-        const cleanDomain = cookie.domain.replace(/^\./, '');
-        const cookieUrl = `${scheme}://${cleanDomain}${cookie.path}`;
+    let removed = 0;
+    let failed = 0;
 
-        try {
-          await chrome.cookies.remove({ url: cookieUrl, name: cookie.name });
-        } catch (_e) {
-          // skip individual cookie removal failures
-        }
+    for (const cookie of cookies) {
+      const scheme = cookie.secure ? 'https' : 'http';
+      const cleanDomain = cookie.domain.replace(/^\./, '');
+      const cookieUrl = `${scheme}://${cleanDomain}${cookie.path || '/'}`;
+
+      const details = { url: cookieUrl, name: cookie.name };
+      if (cookie.storeId) details.storeId = cookie.storeId;
+      if (cookie.partitionKey) details.partitionKey = cookie.partitionKey;
+
+      try {
+        await chrome.cookies.remove(details);
+        removed++;
+      } catch (_e) {
+        failed++;
       }
     }
-    return { success: true };
+
+    return { success: failed === 0, removed, failed };
   } catch (err) {
     return { success: false, error: err.message };
   }
