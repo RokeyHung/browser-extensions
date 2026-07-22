@@ -307,12 +307,13 @@ website.*##.ad-banner
 
 Ý nghĩa:
 
-| Rule                    | Match                                                              |
-| ----------------------- | ------------------------------------------------------------------ |
-| `website.com##.ad`      | Chỉ match `website.com` và có thể bao gồm subdomain nếu config bật |
-| `*.website.com##.ad`    | Match `a.website.com`, `b.website.com`                             |
-| `website.*##.ad`        | Match `website.com`, `website.vn`, `website.net`, `website.co.jp`  |
-| `example.com/path##.ad` | Chỉ match path cụ thể nếu hỗ trợ path rule                         |
+| Rule                    | Match                                                             |
+| ----------------------- | ----------------------------------------------------------------- |
+| `website.com##.ad`      | Match `website.com`, `www.website.com` và mọi subdomain           |
+| `*.website.com##.ad`    | Match `a.website.com`, `b.website.com` (không match root domain)  |
+| `website.*##.ad`        | Match `website.com`, `website.vn`, `website.net`, `website.co.jp` |
+| `*.website.*##.ad`      | Match root domain + mọi subdomain, trên mọi TLD                   |
+| `example.com/path##.ad` | Chỉ match path cụ thể nếu hỗ trợ path rule                        |
 
 ## 5.3. Exception rule
 
@@ -351,24 +352,27 @@ Match:
 website.com
 ```
 
-Không match mặc định:
+Cũng match (www + subdomain):
+
+```text id="ewbcf2"
+www.website.com
+m.website.com
+news.website.com
+```
+
+Không match:
 
 ```text id="otc7k3"
 website.vn
 another-website.com
 ```
 
-Với subdomain, cần config rõ ràng:
+Hành vi:
 
-- Option A: exact domain only.
-- Option B: include subdomains.
+- `website.com` = root domain + `www.` + mọi subdomain (bỏ tiền tố `www.` khi so khớp).
+- `*.website.com` = chỉ subdomain, không gồm root domain.
 
-Khuyến nghị MVP:
-
-```text id="j9l3zk"
-website.com = website.com only
-*.website.com = subdomains only
-```
+Ghi chú: một rule nhập là `www.website.com` được xử lý tương đương `website.com`.
 
 ## 6.2. Subdomain wildcard
 
@@ -439,9 +443,10 @@ Có thể hỗ trợ advanced pattern:
 *.website.*##.banner
 ```
 
-Match:
+Match (gồm cả root domain, mọi TLD):
 
 ```text id="3uyoba"
+website.com
 news.website.com
 m.website.vn
 dev.website.co.jp

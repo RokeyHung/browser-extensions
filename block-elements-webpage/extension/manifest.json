@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Element Filter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Block any element on any website. Hide elements you don't want to see.",
   "permissions": ["activeTab", "scripting", "storage", "contextMenus", "tabs"],
   "host_permissions": ["<all_urls>"],

@@ -4,29 +4,33 @@ const RuleMatcher = (() => {
   function matchDomainPattern(pattern, hostname) {
     if (!pattern) return false;
 
-    // *.website.* — subdomain wildcard + TLD wildcard
+    // *.website.* — subdomain + TLD wildcard: root domain or any subdomain, any TLD
     if (pattern.startsWith('*.') && pattern.endsWith('.*')) {
       const middle = pattern.slice(2, -2);
       const parts = hostname.split('.');
       const idx = parts.indexOf(middle);
-      return idx > 0 && idx < parts.length - 1;
+      // middle label present and followed by at least a TLD label (idx >= 0 allows the root domain too)
+      return idx >= 0 && idx < parts.length - 1;
     }
 
-    // *.website.com — subdomain wildcard only
+    // *.website.com — subdomain wildcard only (does not match the bare root domain)
     if (pattern.startsWith('*.')) {
       const base = pattern.slice(2);
       return hostname.endsWith('.' + base);
     }
 
-    // website.* — TLD wildcard only
+    // website.* — TLD wildcard only (root domain on any TLD)
     if (pattern.endsWith('.*')) {
       const base = pattern.slice(0, -2);
       const parts = hostname.split('.');
       return parts[0] === base && parts.length >= 2;
     }
 
-    // exact match
-    return hostname === pattern;
+    // exact / bare domain — also matches www. and any subdomain
+    // e.g. "example.com" matches example.com, www.example.com, m.example.com
+    let base = pattern;
+    if (base.startsWith('www.') && base.slice(4).includes('.')) base = base.slice(4);
+    return hostname === pattern || hostname === base || hostname.endsWith('.' + base);
   }
 
   function matchPathPattern(pathPattern, pathname) {

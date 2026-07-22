@@ -172,7 +172,7 @@ const ElementPicker = (() => {
         <div class="ef-field">
           <div class="ef-label">Apply to</div>
           <div class="ef-radio-group" id="ef-scope-group">
-            <label><input type="radio" name="ef-scope" value="exact" checked> ${escapeHtml(hostname)} only</label>
+            <label><input type="radio" name="ef-scope" value="exact" checked> ${escapeHtml(baseDomain)} <span style="color:#9ca3af">(+ www &amp; subdomains)</span></label>
             ${root ? `<label><input type="radio" name="ef-scope" value="wildcard-sub"> *.${escapeHtml(baseDomain)}</label>` : ''}
             ${root ? `<label><input type="radio" name="ef-scope" value="wildcard-tld"> ${escapeHtml(root)}.*</label>` : ''}
             <label><input type="radio" name="ef-scope" value="custom"> Custom</label>
@@ -363,7 +363,8 @@ const ElementPicker = (() => {
         break;
       }
       default:
-        domainPattern = hostname;
+        // bare domain (without www.) — matcher applies it to the root domain, www. and subdomains
+        domainPattern = baseDomain;
     }
 
     const rule = {
