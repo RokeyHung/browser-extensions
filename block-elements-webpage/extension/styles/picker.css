@@ -187,6 +187,17 @@
   color: #dc2626;
 }
 
+#ef-panel .ef-panel-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #b91c1c;
+  margin-bottom: 12px;
+}
+
 #ef-panel .ef-unstable-warning {
   background: #fffbeb;
   border: 1px solid #fde68a;

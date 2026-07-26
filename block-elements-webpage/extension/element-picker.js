@@ -378,11 +378,50 @@ const ElementPicker = (() => {
       matchedCountAtCreation: SelectorGenerator.countMatches(selector),
     };
 
-    chrome.runtime.sendMessage({ type: 'saveRule', rule }, (res) => {
+    sendToBackground({ type: 'saveRule', rule }, (res) => {
       if (res && res.success) {
         showSuccess(rule);
+      } else {
+        showPanelError('Could not save the filter. Check the console for details.');
       }
     });
+  }
+
+  // A content script keeps running after the extension is reloaded or updated,
+  // but its chrome.runtime is torn down — sendMessage then throws and the click
+  // appears to do nothing. Detect that and say what to do instead.
+  function sendToBackground(message, callback) {
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
+      showPanelError('Element Filter was reloaded or updated. Refresh this page (F5), then pick the element again.');
+      return;
+    }
+
+    try {
+      chrome.runtime.sendMessage(message, (res) => {
+        if (chrome.runtime.lastError) {
+          showPanelError(`Extension not reachable: ${chrome.runtime.lastError.message}. Refresh this page and try again.`);
+          return;
+        }
+        callback(res);
+      });
+    } catch (err) {
+      showPanelError(`Extension not reachable: ${err.message}. Refresh this page and try again.`);
+    }
+  }
+
+  function showPanelError(message) {
+    if (!panelEl) return;
+    const body = panelEl.querySelector('.ef-panel-body');
+    if (!body) return;
+
+    let box = panelEl.querySelector('#ef-panel-error');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'ef-panel-error';
+      box.className = 'ef-panel-error';
+      body.insertBefore(box, body.firstChild);
+    }
+    box.textContent = message;
   }
 
   function showSuccess(rule) {

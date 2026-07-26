@@ -19,10 +19,18 @@
   // ─── Rule application ──────────────────────────────────────────────────────
 
   function loadAndApplyRules() {
-    chrome.runtime.sendMessage({ type: 'getRulesForUrl', url: location.href }, (rules) => {
-      if (chrome.runtime.lastError || !rules) return;
-      applyRules(rules);
-    });
+    // After the extension is reloaded or updated, this script keeps running but
+    // chrome.runtime is gone — bail out instead of throwing on every page load.
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) return;
+
+    try {
+      chrome.runtime.sendMessage({ type: 'getRulesForUrl', url: location.href }, (rules) => {
+        if (chrome.runtime.lastError || !rules) return;
+        applyRules(rules);
+      });
+    } catch (_err) {
+      // Extension context invalidated; already-applied rules stay in place.
+    }
   }
 
   function applyRules(rules) {
@@ -70,7 +78,7 @@
     chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       switch (msg.type) {
         case 'startPicker':
-          ElementPicker.activate();
+          ElementPicker.activate(msg.mode);
           sendResponse({ success: true });
           break;
 
@@ -94,8 +102,8 @@
   // ─── Listen for custom event from background (injected script) ────────────
 
   function listenForPickerTrigger() {
-    window.addEventListener('elementFilter:startPicker', () => {
-      ElementPicker.activate();
+    window.addEventListener('elementFilter:startPicker', (e) => {
+      ElementPicker.activate(e.detail && e.detail.mode);
     });
   }
 
