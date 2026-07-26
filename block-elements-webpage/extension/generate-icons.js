@@ -1,5 +1,14 @@
 #!/usr/bin/env node
-// generate-icons.js — creates PNG icons using only Node.js built-ins
+// generate-icons.js — creates PNG icons using only Node.js built-ins.
+// Draws the closed eye from icons/eye-closed-source.svg: a lid arc with five
+// lashes below it, evoking "hidden element".
+//
+// The source path is a stroke already converted to a fill, so its data is
+// hundreds of tiny bezier segments. Rather than transcribing that, the anchor
+// points the outline was built around are read off it and the centre lines are
+// rebuilt: the arc as a spline through those points, the lashes as segments.
+// Everything is then stroked by distance, the way the source was before it got
+// flattened. Each pixel takes 4x4 samples.
 // Run: node generate-icons.js
 
 const zlib = require('zlib');
@@ -31,29 +40,150 @@ function chunk(type, data) {
   return Buffer.concat([len, t, data, crcVal]);
 }
 
-function makePNG(size, drawFn) {
-  const pixels = new Uint8Array(size * size * 4); // RGBA
+// ─── Artwork ────────────────────────────────────────────────────────────────────
 
-  // Fill each pixel
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const i = (y * size + x) * 4;
-      drawFn(x, y, pixels, i, size);
+const INK = [28, 39, 76]; // #1c274c
+const HALF_WIDTH = 0.75; // the source stroke is 1.5 units wide, with round caps
+const LASH_ALPHA = 0.5; // the source's second path carries opacity="0.5"
+
+// Bounding box of the drawing inside the 24x24 SVG canvas, stroke included.
+const ART = { x0: 1.25, y0: 6.25, x1: 22.75, y1: 17.25 };
+
+// Points the lid arc passes through, taken from the source outline: the arc ends
+// at (2,7) and (22,7), bottoms out at (12,14), and every lash starts on it.
+const ARC_POINTS = [
+  [2, 7],
+  [5, 11.1288],
+  [8.4128, 13.3288],
+  [12, 14],
+  [15.5872, 13.3288],
+  [19, 11.1288],
+  [22, 7],
+];
+
+// Lash centre lines; each end is the midpoint of the corresponding round cap.
+const LASHES = [
+  [5.0, 11.1289, 3.5, 12.6289],
+  [8.4128, 13.3288, 7.0, 15.5],
+  [12, 14, 12, 16.5],
+  [15.5872, 13.3288, 17.0, 15.5],
+  [19.0, 11.1289, 20.5, 12.6289],
+];
+
+// Catmull-Rom keeps the curve on every anchor point, so the rebuilt arc meets
+// the lashes exactly where the source does.
+function splinePolyline(points, stepsPerSpan) {
+  const padded = [points[0], ...points, points[points.length - 1]];
+  const out = [];
+
+  for (let i = 1; i < padded.length - 2; i++) {
+    const p0 = padded[i - 1];
+    const p1 = padded[i];
+    const p2 = padded[i + 1];
+    const p3 = padded[i + 2];
+
+    for (let s = 0; s < stepsPerSpan; s++) {
+      const t = s / stepsPerSpan;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const axis = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+      out.push([axis(p0[0], p1[0], p2[0], p3[0]), axis(p0[1], p1[1], p2[1], p3[1])]);
     }
   }
 
-  // PNG signature
-  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  out.push(points[points.length - 1]);
+  return out;
+}
 
-  // IHDR
+const ARC = splinePolyline(ARC_POINTS, 40);
+
+function distanceToSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+function nearPolyline(px, py, polyline, halfWidth) {
+  for (let i = 0; i < polyline.length - 1; i++) {
+    const [ax, ay] = polyline[i];
+    const [bx, by] = polyline[i + 1];
+    // Cheap reject before the square root.
+    if (Math.min(ax, bx) - halfWidth > px || Math.max(ax, bx) + halfWidth < px) continue;
+    if (Math.min(ay, by) - halfWidth > py || Math.max(ay, by) + halfWidth < py) continue;
+    if (distanceToSegment(px, py, ax, ay, bx, by) <= halfWidth) return true;
+  }
+  return false;
+}
+
+// Alpha at a point of the artwork. The lid is opaque, the lashes half
+// transparent, matching the source's two paths.
+function alphaAt(u, v, halfWidth, lashAlpha) {
+  if (nearPolyline(u, v, ARC, halfWidth)) return 1;
+  for (const [ax, ay, bx, by] of LASHES) {
+    if (distanceToSegment(u, v, ax, ay, bx, by) <= halfWidth) return lashAlpha;
+  }
+  return 0;
+}
+
+// Optical sizing. At 16px the source proportions put the stroke near one pixel
+// and the half-transparent lashes below the threshold of being visible at all,
+// so the toolbar icon reads as a faint smile. Small sizes get a heavier stroke
+// and firmer lashes; 48 and 128 stay faithful to the source.
+function weightFor(size) {
+  if (size <= 16) return { halfWidth: 1.05, lashAlpha: 0.78 };
+  if (size <= 32) return { halfWidth: 0.9, lashAlpha: 0.62 };
+  return { halfWidth: HALF_WIDTH, lashAlpha: LASH_ALPHA };
+}
+
+// ─── PNG encoding ───────────────────────────────────────────────────────────────
+
+const SAMPLES = 4; // per axis, so 16 samples per pixel
+
+function makePNG(size) {
+  const { halfWidth, lashAlpha } = weightFor(size);
+  const artWidth = ART.x1 - ART.x0;
+  const artHeight = ART.y1 - ART.y0;
+  const inset = size * 0.04;
+  const scale = (size - inset * 2) / Math.max(artWidth, artHeight);
+  const offsetX = (size - artWidth * scale) / 2;
+  const offsetY = (size - artHeight * scale) / 2;
+
+  const pixels = new Uint8Array(size * size * 4);
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let alphaSum = 0;
+
+      for (let sy = 0; sy < SAMPLES; sy++) {
+        for (let sx = 0; sx < SAMPLES; sx++) {
+          const u = ART.x0 + (x + (sx + 0.5) / SAMPLES - offsetX) / scale;
+          const v = ART.y0 + (y + (sy + 0.5) / SAMPLES - offsetY) / scale;
+          alphaSum += alphaAt(u, v, halfWidth, lashAlpha);
+        }
+      }
+
+      const i = (y * size + x) * 4;
+      const alpha = alphaSum / (SAMPLES * SAMPLES);
+      if (alpha <= 0) {
+        pixels[i] = pixels[i + 1] = pixels[i + 2] = pixels[i + 3] = 0;
+        continue;
+      }
+      // One ink colour throughout, so only the alpha varies per pixel.
+      pixels[i] = INK[0];
+      pixels[i + 1] = INK[1];
+      pixels[i + 2] = INK[2];
+      pixels[i + 3] = Math.round(alpha * 255);
+    }
+  }
+
+  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(size, 0);
   ihdr.writeUInt32BE(size, 4);
   ihdr[8] = 8; // bit depth
   ihdr[9] = 6; // RGBA
-  // rest are 0
 
-  // Raw scanlines (filter byte + RGBA per pixel)
   const raw = Buffer.alloc(size * (1 + size * 4));
   for (let y = 0; y < size; y++) {
     raw[y * (1 + size * 4)] = 0; // filter: None
@@ -68,80 +198,15 @@ function makePNG(size, drawFn) {
   }
 
   const compressed = zlib.deflateSync(raw);
-
   return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', compressed), chunk('IEND', Buffer.alloc(0))]);
-}
-
-function draw(x, y, pixels, i, size) {
-  const cx = size / 2,
-    cy = size / 2;
-  const r = size / 2;
-  const dx = x - cx,
-    dy = y - cy;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  const cornerR = size * 0.22;
-
-  // Rounded square check (approximate)
-  const abx = Math.abs(dx),
-    aby = Math.abs(dy);
-  const inSquare = abx <= r - 1 && aby <= r - 1;
-  // Soften corners
-  const inCorner = abx > r - cornerR && aby > r - cornerR;
-  const cornerDist = Math.sqrt((abx - (r - cornerR)) ** 2 + (aby - (r - cornerR)) ** 2);
-  const inShape = inSquare && (!inCorner || cornerDist <= cornerR);
-
-  if (!inShape) {
-    // transparent
-    pixels[i] = pixels[i + 1] = pixels[i + 2] = pixels[i + 3] = 0;
-    return;
-  }
-
-  // Background gradient: #4F46E5 → #7C3AED
-  const t = (x + y) / (size * 2);
-  const bgR = Math.round(79 + t * (124 - 79));
-  const bgG = Math.round(70 + t * (58 - 70));
-  const bgB = Math.round(229 + t * (237 - 229));
-
-  // Draw "F" letter (simplified pixel art)
-  const lx = x / size,
-    ly = y / size;
-
-  // Letter area: roughly center 40%
-  const inLetter = (() => {
-    const nx = (x - size * 0.28) / (size * 0.44);
-    const ny = (y - size * 0.2) / (size * 0.6);
-    if (nx < 0 || nx > 1 || ny < 0 || ny > 1) return false;
-
-    // Vertical stroke
-    if (nx < 0.25) return true;
-    // Top horizontal bar
-    if (ny < 0.2) return true;
-    // Middle bar
-    if (ny > 0.42 && ny < 0.58 && nx < 0.75) return true;
-
-    return false;
-  })();
-
-  if (inLetter) {
-    pixels[i] = 255;
-    pixels[i + 1] = 255;
-    pixels[i + 2] = 255;
-    pixels[i + 3] = 230;
-  } else {
-    pixels[i] = bgR;
-    pixels[i + 1] = bgG;
-    pixels[i + 2] = bgB;
-    pixels[i + 3] = 255;
-  }
 }
 
 const outDir = path.join(__dirname, 'icons');
 if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
 [16, 48, 128].forEach((size) => {
-  const png = makePNG(size, draw);
   const outPath = path.join(outDir, `icon${size}.png`);
-  fs.writeFileSync(outPath, png);
+  fs.writeFileSync(outPath, makePNG(size));
   console.log(`✓ Generated ${outPath}`);
 });
 

@@ -24,6 +24,7 @@ Tất cả thay đổi đáng chú ý của extension **Element Filter** đượ
 
 ### Changed
 
+- **Icon đổi sang hình mắt nhắm** (nguồn: SVG Repo, lưu ở `icons/eye-closed-source.svg`), hợp nghĩa "element bị ẩn" hơn biển cấm cũ. Path gốc là stroke đã convert thành fill nên dữ liệu là hàng trăm đoạn bezier vụn; generator không chép lại mà bóc các điểm neo rồi dựng lại đường tâm — cung mí là spline Catmull-Rom đi qua đúng 7 điểm đó, 5 lông mi là đoạn thẳng, tất cả tô theo khoảng cách đúng như stroke gốc.
 - **Tab `Block` / `Inspect` chuyển lên hàng trên cùng của panel**, nằm ngay trong thanh header màu tím thay vì là một hàng riêng bên dưới. Tiêu đề cũ ("Block Element" / "Inspect Element") bị bỏ vì trùng nghĩa với tên tab đang chọn — đổi lại panel gọn hơn một hàng. Tab đang chọn có gạch chân trắng. Màn hình "Filter Created" vẫn dùng header dạng tiêu đề như cũ.
 - **Specificity hiện rõ đang ở level nào** — thêm badge `3/4 · Specific` cạnh nhãn, và hàng 4 nút số bấm chọn trực tiếp được (không phụ thuộc vào việc slider có render đúng hay không). Sửa selector bằng tay thì badge đổi thành `edited by hand`.
 - Panel rộng 340px → 380px, body của tab Inspect scroll trong `max-height: 62vh`.
