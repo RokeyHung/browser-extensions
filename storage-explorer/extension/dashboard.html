@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Storage Explorer — Dashboard</title>
+    <link rel="stylesheet" href="styles/popup.css" />
+    <link rel="stylesheet" href="styles/dashboard.css" />
+  </head>
+  <body class="dashboard-body">
+    <header class="dash-header">
+      <div class="dash-header-left">
+        <div class="header-logo">📦</div>
+        <div>
+          <h1>Storage Explorer</h1>
+          <div class="dash-site" id="site-origin">—</div>
+        </div>
+      </div>
+      <div class="dash-site-select">
+        <label for="tab-picker">Target tab</label>
+        <select id="tab-picker"></select>
+      </div>
+    </header>
+
+    <section class="toolbar">
+      <button class="btn btn-secondary" id="refresh">🔄 Refresh</button>
+      <button class="btn btn-primary" id="add">➕ Add entry</button>
+      <button class="btn btn-secondary" id="snapshot">📸 Save snapshot</button>
+      <button class="btn btn-secondary" id="export">⬇ Export JSON</button>
+      <button class="btn btn-secondary" id="import">⬆ Import JSON</button>
+      <button class="btn btn-danger" id="clear">🗑 Clear area</button>
+      <input type="file" id="import-file" accept="application/json,.json" hidden />
+    </section>
+
+    <div class="banner" id="banner" hidden></div>
+
+    <section class="summary" id="summary"></section>
+
+    <section class="tabs" id="tabs"></section>
+
+    <section class="filter-row">
+      <input type="search" id="search" placeholder="Search key, value, domain…" />
+      <label class="filter-check" id="all-origins-wrap" hidden> <input type="checkbox" id="all-origins" /> Show all origins </label>
+      <span class="result-count" id="result-count"></span>
+    </section>
+
+    <section class="table-wrap">
+      <table class="data-table">
+        <thead id="thead"></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty-state" id="empty" hidden></div>
+    </section>
+
+    <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+    <aside class="drawer" id="drawer" hidden></aside>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script src="modules/value-inspect.js"></script>
+    <script src="dashboard.js"></script>
+  </body>
+</html>
