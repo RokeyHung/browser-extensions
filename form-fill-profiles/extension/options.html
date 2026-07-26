@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Form Fill Profiles — Manage</title>
+    <link rel="stylesheet" href="styles/options.css" />
+  </head>
+
+  <body>
+    <header class="topbar">
+      <div class="brand">Form Fill Profiles</div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" id="btnSettings" type="button">Settings</button>
+        <button class="btn btn-ghost" id="btnExport" type="button">Export</button>
+        <button class="btn btn-ghost" id="btnImport" type="button">Import</button>
+        <input type="file" id="importFile" accept="application/json" hidden />
+      </div>
+    </header>
+
+    <div class="toast" id="toast" hidden></div>
+
+    <main class="layout">
+      <!-- Sidebar: sites → forms -->
+      <aside class="sidebar">
+        <div class="sidebar-label">Saved forms</div>
+        <div id="sidebarList"></div>
+        <div class="sidebar-empty" id="sidebarEmpty" hidden>
+          No form saved yet. Open a page with a form, click the extension icon and choose
+          <strong>Capture form on this page</strong>.
+        </div>
+      </aside>
+
+      <!-- Detail pane -->
+      <section class="content">
+        <!-- Form detail -->
+        <div id="formView" hidden>
+          <div class="form-head">
+            <input class="input title-input" id="formLabel" type="text" />
+            <div class="form-head-actions">
+              <button class="btn btn-primary" id="btnAddProfile" type="button">Add profile</button>
+              <button class="btn btn-ghost" id="btnExportForm" type="button">Export</button>
+              <button class="btn btn-danger" id="btnDeleteForm" type="button">Delete form</button>
+            </div>
+          </div>
+
+          <div class="muted" id="formSource"></div>
+          <div class="warn" id="schemaWarn" hidden>The form changed since it was captured. Re-capture it from the popup to refresh the fields.</div>
+
+          <div class="card">
+            <div class="card-title">Match patterns</div>
+            <div class="pattern-row">
+              <label class="field">
+                <span class="field-label">Domain pattern</span>
+                <input class="input mono" id="domainPattern" type="text" placeholder="*.example.*" />
+              </label>
+              <label class="field">
+                <span class="field-label">Path pattern</span>
+                <input class="input mono" id="pathPattern" type="text" placeholder="/register" />
+              </label>
+              <button class="btn btn-primary" id="btnSavePatterns" type="button">Save</button>
+            </div>
+            <div class="pattern-help">
+              <code>example.com</code> also matches subdomains · <code>*.example.com</code> subdomains only · <code>example.*</code> any TLD ·
+              <code>*.example.*</code> both · path <code>/register/*</code> matches anything below it, <code>*</code> matches every path.
+            </div>
+            <div class="error" id="patternError" hidden></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Profiles (<span id="profileCount">0</span>)</div>
+            <table class="table" id="profileTable">
+              <thead>
+                <tr>
+                  <th>Default</th>
+                  <th>Name</th>
+                  <th>Filled</th>
+                  <th>Used</th>
+                  <th>Last used</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="profileTableBody"></tbody>
+            </table>
+            <div class="muted" id="noProfiles" hidden>No profile yet for this form.</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Captured fields (<span id="fieldCount">0</span>)</div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Type</th>
+                  <th>Name</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="fieldTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Profile editor -->
+        <div id="editorView" hidden>
+          <div class="form-head">
+            <div>
+              <div class="editor-title">Profile editor</div>
+              <div class="muted" id="editorFormInfo"></div>
+            </div>
+            <div class="form-head-actions">
+              <button class="btn btn-primary" id="btnSaveProfile" type="button">Save profile</button>
+              <button class="btn btn-ghost" id="btnSaveApply" type="button">Save &amp; apply to tab</button>
+              <button class="btn btn-ghost" id="btnCancelEdit" type="button">Cancel</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="meta-row">
+              <label class="field">
+                <span class="field-label">Profile name</span>
+                <input class="input" id="profileName" type="text" placeholder="Account VN - Gmail" />
+              </label>
+              <label class="field">
+                <span class="field-label">Note (optional)</span>
+                <input class="input" id="profileNote" type="text" placeholder="Smoke test on dev" />
+              </label>
+              <label class="check">
+                <input type="checkbox" id="profileDefault" />
+                <span>Set as default</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Answers</div>
+            <div id="editorFields"></div>
+          </div>
+
+          <div class="error" id="editorError" hidden></div>
+        </div>
+
+        <!-- Settings -->
+        <div id="settingsView" hidden>
+          <div class="form-head">
+            <div class="editor-title">Settings</div>
+            <button class="btn btn-ghost" id="btnCloseSettings" type="button">Close</button>
+          </div>
+
+          <div class="card">
+            <label class="check"><input type="checkbox" id="setShowApplyResult" /><span>Show apply result in popup</span></label>
+            <label class="check"
+              ><input type="checkbox" id="setDispatchEvents" /><span
+                >Dispatch input/change events after filling (needed by React/Vue forms)</span
+              ></label
+            >
+            <label class="check"><input type="checkbox" id="setRetry" /><span>Retry filling for dynamic forms</span></label>
+            <label class="field inline">
+              <span class="field-label">Retry window (ms)</span>
+              <input class="input short" id="setRetryWindow" type="number" min="0" step="500" />
+            </label>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Capture</div>
+            <label class="check">
+              <input type="checkbox" id="setIncludePassword" />
+              <span>Include password fields when capturing</span>
+            </label>
+            <div class="warn">
+              Profile values are stored <strong>unencrypted</strong> in <code>chrome.storage.local</code>. Anyone with access to this Chrome profile
+              can read them. Do not store real end-user data or real passwords.
+            </div>
+            <label class="check"><input type="checkbox" id="setIncludeHidden" /><span>Include hidden fields</span></label>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Data</div>
+            <button class="btn btn-danger" id="btnClearAll" type="button">Delete all forms and profiles</button>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div class="placeholder" id="placeholderView">Select a form on the left, or capture one from a page.</div>
+      </section>
+    </main>
+
+    <script src="modules/form-matcher.js"></script>
+    <script src="modules/storage-repository.js"></script>
+    <script src="modules/exporter.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

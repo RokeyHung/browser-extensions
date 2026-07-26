@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Form Fill Profiles</title>
+    <link rel="stylesheet" href="styles/popup.css" />
+  </head>
+
+  <body>
+    <div class="header">
+      <span class="header-title">Form Fill Profiles</span>
+      <button class="link-btn" id="btnManage" type="button">Manage</button>
+    </div>
+
+    <!-- Main view (valid http/https page) -->
+    <div class="body" id="mainView">
+      <div class="site-label">Current path</div>
+      <div class="site-url" id="siteUrl">Loading...</div>
+
+      <!-- No saved form matches this URL -->
+      <section class="section" id="emptyState" hidden>
+        <div class="muted" id="emptyText">No saved profile for this path.</div>
+        <div class="muted" id="detectedText"></div>
+        <button class="btn btn-primary" id="btnCapture" type="button">Capture form on this page</button>
+      </section>
+
+      <!-- Matched form + profiles -->
+      <section class="section" id="matchedState" hidden>
+        <div class="section-label">Matched form</div>
+        <select class="select" id="formSelect"></select>
+        <div class="pattern" id="formPattern"></div>
+
+        <div class="section-label">Profiles</div>
+        <div class="profile-list" id="profileList"></div>
+
+        <button class="btn btn-primary" id="btnApply" type="button">Apply selected profile</button>
+        <div class="row">
+          <button class="btn btn-ghost" id="btnRecapture" type="button">Re-capture form</button>
+          <button class="btn btn-ghost" id="btnAddProfile" type="button">Add profile</button>
+        </div>
+      </section>
+
+      <!-- Form picker after a capture -->
+      <section class="section" id="pickerState" hidden>
+        <div class="section-label">Forms detected</div>
+        <div class="picker-list" id="pickerList"></div>
+        <button class="btn btn-primary" id="btnContinue" type="button">Continue</button>
+        <button class="btn btn-ghost" id="btnCancelPicker" type="button">Cancel</button>
+      </section>
+
+      <div class="loading" id="loading" hidden>
+        <div class="spinner"></div>
+        <span id="loadingText">Working...</span>
+      </div>
+
+      <!-- Apply report -->
+      <section class="results" id="results" hidden>
+        <div class="section-label" id="resultsTitle">Result</div>
+        <div id="resultsBody"></div>
+      </section>
+
+      <div class="error" id="errorBox" hidden></div>
+    </div>
+
+    <!-- Unsupported page -->
+    <div class="unsupported" id="unsupportedView" hidden>
+      <div class="unsupported-icon">🚫</div>
+      <div class="unsupported-title">Page not supported</div>
+      <div class="unsupported-desc">Open a normal <strong>http://</strong> or <strong>https://</strong> page to capture or fill a form.</div>
+    </div>
+
+    <script src="modules/form-matcher.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
