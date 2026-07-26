@@ -14,6 +14,7 @@ Tất cả thay đổi đáng chú ý của extension **Popup Redirect Guard** �
 
 ### Changed
 
+- **Logo trong header dùng chính icon của extension** thay cho emoji 🛡, ở cả popup và trang options. Icon đặt trên nền trắng bo góc vì header là gradient xanh, mà artwork khiên cũng màu xanh `#2197f3` — để trực tiếp lên gradient thì gần như chìm.
 - Icon đổi sang hình khiên xanh `#2197f3` có dấu X trắng (nguồn: SVG Repo, lưu ở `extension/icons/shield-source.svg`), thay cho biển cấm vẽ tay trước đó. Icon được sinh từ hình học của SVG bằng `generate-icons.js` với 4×4 sample mỗi pixel nên cạnh cong không răng cưa ở cỡ 16px.
 
 ### Notes

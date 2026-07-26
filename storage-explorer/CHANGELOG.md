@@ -16,6 +16,7 @@ Tất cả thay đổi đáng chú ý của extension **Storage Explorer** đư�
 - **IndexedDB**: liệt kê database → object store → số record, xem tối đa 100 record mỗi store (read-only), xoá nguyên database.
 - Popup hiển thị số lượng của 4 area, nút chụp snapshot nhanh và dropdown restore snapshot của site hiện tại.
 - Dashboard gắn vào một **target tab** cụ thể, đổi tab qua dropdown ở header; tab bị đóng thì hiện banner và refresh lại danh sách.
+- Logo trong header của popup và dashboard dùng chính icon của extension, không dùng emoji.
 - Icon hình thùng carton, sinh bằng `generate-icons.js` (chỉ dùng built-in của Node, không cần dependency) từ hình học của `icons/box-source.svg` (nguồn: SVG Repo). Mỗi pixel lấy 4×4 sample rồi trung bình để cạnh xiên không bị răng cưa ở cỡ 16px.
 
 ### Notes

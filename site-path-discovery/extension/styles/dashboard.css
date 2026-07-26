@@ -34,8 +34,9 @@ body.dashboard-body {
 .dash-header .header-logo {
   width: 34px;
   height: 34px;
-  background: linear-gradient(135deg, #2563eb, #0891b2);
-  font-size: 18px;
+  padding: 0;
+  background: none;
+  border-radius: 8px;
 }
 
 .dash-header h1 {

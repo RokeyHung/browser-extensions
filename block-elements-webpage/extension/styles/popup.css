@@ -37,16 +37,19 @@ body.options-body {
   gap: 10px;
 }
 
+/* The extension icon itself. It sits on a light plate because the header is a
+   saturated gradient and some of the artwork is dark or blue, which would
+   otherwise disappear into it. */
 .header-logo {
   width: 24px;
   height: 24px;
-  background: rgba(255, 255, 255, 0.2);
+  padding: 3px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.95);
   border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 13px;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
 }
 
 .header h1 {
