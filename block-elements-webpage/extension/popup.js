@@ -50,6 +50,9 @@ async function render() {
       <button class="btn btn-primary" id="btn-block">
         ✚ Block element
       </button>
+      <button class="btn btn-secondary" id="btn-inspect">
+        🔍 Inspect element
+      </button>
       <button class="btn btn-secondary" id="btn-site-rules">
         📋 Show rules for this site
       </button>
@@ -69,7 +72,14 @@ async function render() {
 
   document.getElementById('btn-block').addEventListener('click', async () => {
     if (!siteEnabled) return;
-    await chrome.runtime.sendMessage({ type: 'startPickerInTab', tabId: tab.id });
+    await chrome.runtime.sendMessage({ type: 'startPickerInTab', tabId: tab.id, mode: 'block' });
+    window.close();
+  });
+
+  // Inspect is read-only, so it stays available even when filtering is off for
+  // this site.
+  document.getElementById('btn-inspect').addEventListener('click', async () => {
+    await chrome.runtime.sendMessage({ type: 'startPickerInTab', tabId: tab.id, mode: 'inspect' });
     window.close();
   });
 

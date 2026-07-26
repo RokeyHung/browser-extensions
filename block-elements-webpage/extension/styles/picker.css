@@ -40,7 +40,7 @@
   bottom: 20px;
   right: 20px;
   z-index: 2147483643;
-  width: 340px;
+  width: 380px;
   background: #fff;
   border-radius: 12px;
   box-shadow:
@@ -155,22 +155,127 @@
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
 }
 
+#ef-panel .ef-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#ef-panel .ef-level-badge {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4338ca;
+  background: #eef2ff;
+  border-radius: 999px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+
 #ef-panel .ef-slider-container {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
+/* Was 10px #9ca3af — about 2.6:1 on white, which fails WCAG AA. */
 #ef-panel .ef-slider-label {
-  font-size: 10px;
-  color: #9ca3af;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #4b5563 !important;
   white-space: nowrap;
+  text-transform: none !important;
 }
 
+/* The panel lives in the page's DOM, so the site's own input styling can bleed
+   in and leave the slider invisible. Draw track and thumb explicitly, and hold
+   the declarations with !important so a page rule cannot wash them out. */
 #ef-panel .ef-slider {
+  -webkit-appearance: none !important;
+  appearance: none !important;
   flex: 1;
-  accent-color: #4f46e5;
+  height: 6px !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: #e0e7ff !important;
+  opacity: 1 !important;
   cursor: pointer;
+  outline: none;
+}
+
+#ef-panel .ef-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+}
+
+#ef-panel .ef-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: #4f46e5;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+#ef-panel .ef-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  border: none;
+}
+
+#ef-panel .ef-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4f46e5;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+/* Numbered steps: a fallback that does not rely on native range rendering. */
+#ef-panel .ef-ticks {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+#ef-panel .ef-tick {
+  flex: 1;
+  padding: 4px 0 !important;
+  border: 1px solid #e0e7ff !important;
+  background: #f8f9ff !important;
+  color: #6b7280 !important;
+  border-radius: 6px !important;
+  font-family: inherit !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  cursor: pointer;
+  text-transform: none !important;
+}
+
+#ef-panel .ef-tick:hover {
+  border-color: #a5b4fc !important;
+  color: #4338ca !important;
+}
+
+#ef-panel .ef-tick-active {
+  background: #4f46e5 !important;
+  border-color: #4f46e5 !important;
+  color: #ffffff !important;
 }
 
 #ef-panel .ef-match-count {
@@ -270,6 +375,293 @@
   font-family: 'Courier New', monospace;
   word-break: break-all;
   margin-bottom: 8px;
+}
+
+/* ── Top tabs ── */
+
+/* Tabbed variant of the header: tabs sit flush with its bottom edge so the
+   active underline reads as a real tab. The plain header (used by the success
+   screen) keeps its centred title. */
+#ef-panel .ef-panel-header.ef-header-tabs {
+  padding: 0 12px 0 4px;
+  align-items: stretch;
+}
+
+/* The tabs carry a 3px underline at the bottom of the header, so centring the
+   close button against the full header height leaves it sitting 1.5px below the
+   tab labels. The matching margin-bottom lines it up with the text instead. */
+#ef-panel .ef-header-tabs > #ef-close-btn {
+  align-self: center;
+  margin-bottom: 3px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0;
+  width: 26px !important;
+  height: 26px !important;
+  padding: 0 !important;
+  border-radius: 6px !important;
+  font-size: 15px !important;
+  line-height: 1 !important;
+}
+
+#ef-panel .ef-header-tabs > #ef-close-btn:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+}
+
+#ef-panel .ef-tabs {
+  display: flex;
+  gap: 2px;
+}
+
+#ef-panel .ef-tab {
+  border: none !important;
+  border-bottom: 3px solid transparent !important;
+  background: none !important;
+  padding: 13px 14px 10px !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  cursor: pointer;
+  font-family: inherit !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  text-transform: none !important;
+  /* 0.8 is the lowest opacity that still clears WCAG AA on the indigo header. */
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+#ef-panel .ef-tab:hover {
+  color: #ffffff !important;
+}
+
+#ef-panel .ef-tab-active {
+  color: #ffffff !important;
+  border-bottom-color: #ffffff !important;
+}
+
+/* ── Inspect tab ── */
+
+#ef-panel .ef-inspect-body {
+  max-height: 62vh;
+  overflow-y: auto;
+}
+
+#ef-panel .ef-insp-identity {
+  font-family: 'Courier New', monospace;
+  font-size: 12.5px;
+  color: #3730a3;
+  background: #f8f9ff;
+  border: 1px solid #e0e7ff;
+  border-radius: 6px;
+  padding: 7px 10px;
+  word-break: break-all;
+}
+
+#ef-panel .ef-insp-text {
+  font-size: 11.5px;
+  color: #6b7280;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+#ef-panel .ef-insp-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+}
+
+#ef-panel .ef-insp-section .ef-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#ef-panel .ef-insp-sel {
+  margin-bottom: 8px;
+}
+
+#ef-panel .ef-insp-sel-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+#ef-panel .ef-insp-sel-level {
+  font-size: 10.5px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex: 1;
+}
+
+#ef-panel .ef-code {
+  display: block;
+  font-family: 'Courier New', monospace;
+  font-size: 11.5px;
+  color: #3730a3;
+  background: #f8f9ff;
+  border: 1px solid #e0e7ff;
+  border-radius: 6px;
+  padding: 6px 8px;
+  word-break: break-all;
+  line-height: 1.45;
+}
+
+#ef-panel .ef-copy {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #6b7280;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 10.5px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+#ef-panel .ef-copy:hover {
+  background: #f3f4f6;
+  color: #4f46e5;
+}
+
+#ef-panel .ef-copy-block {
+  width: 100%;
+  margin-top: 6px;
+  padding: 5px;
+}
+
+#ef-panel .ef-insp-count {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+
+#ef-panel .ef-count-unique {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+#ef-panel .ef-count-many {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+#ef-panel .ef-count-bad {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+#ef-panel .ef-insp-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11.5px;
+  padding: 3px 0;
+  color: #374151;
+}
+
+#ef-panel .ef-insp-kv > span:first-child {
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+#ef-panel .ef-insp-kv > span:last-child {
+  text-align: right;
+  word-break: break-word;
+}
+
+#ef-panel .ef-insp-kv em {
+  color: #9ca3af;
+  font-style: normal;
+}
+
+#ef-panel .ef-insp-muted {
+  font-size: 11.5px;
+  color: #9ca3af;
+  line-height: 1.45;
+}
+
+/* ── Contrast ── */
+
+#ef-panel .ef-contrast-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+#ef-panel .ef-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1px solid #d1d5db;
+  flex-shrink: 0;
+}
+
+#ef-panel .ef-contrast-ratio {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+}
+
+#ef-panel .ef-contrast-verdict {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+
+#ef-panel .ef-pass-aaa {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+#ef-panel .ef-pass-aa {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+#ef-panel .ef-pass-fail {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+/* ── Findings ── */
+
+#ef-panel .ef-finding {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  padding: 4px 0;
+  color: #374151;
+}
+
+#ef-panel .ef-finding-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+#ef-panel .ef-finding-error .ef-finding-dot {
+  background: #dc2626;
+}
+
+#ef-panel .ef-finding-warn .ef-finding-dot {
+  background: #f59e0b;
+}
+
+#ef-panel .ef-finding-info .ef-finding-dot {
+  background: #9ca3af;
+}
+
+#ef-panel .ef-finding-ok .ef-finding-dot {
+  background: #10b981;
 }
 
 /* Preview highlight */

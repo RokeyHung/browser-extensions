@@ -113,5 +113,5 @@ const SelectorGenerator = (() => {
     }
   }
 
-  return { generate, countMatches, isValidSelector, getStableClasses };
+  return { generate, countMatches, isValidSelector, getStableClasses, isUnstableClass, isUnstableId };
 })();

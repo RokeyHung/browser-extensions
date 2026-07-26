@@ -600,6 +600,7 @@ website.com
 Active rules on this site: 3
 
 [Block element]
+[Inspect element]
 [Show rules for this site]
 [Manage all filters]
 
@@ -607,19 +608,74 @@ Toggle:
 [✓] Enable filtering on this site
 ```
 
+## 10bis. Inspect Element Mode
+
+Cùng một picker, hai tab: `Block` tạo rule, `Inspect` báo cáo thông tin về element đã chọn. Mục tiêu là **xem trước khi ẩn** — biết selector có unique không, element đang chứa gì, và có vấn đề accessibility nào, trước khi quyết định block.
+
+### 10bis.1. Cách mở
+
+- Popup → `🔍 Inspect element`.
+- Context menu → `Element Filter` → `Inspect element`.
+- Đang ở tab `Block` thì bấm sang tab `Inspect` (không phải chọn lại element).
+
+Inspect là read-only nên vẫn dùng được khi filtering đã tắt cho site đó.
+
+### 10bis.2. Nội dung panel
+
+| Mục             | Nội dung                                                                          |
+| --------------- | --------------------------------------------------------------------------------- |
+| Identity        | `tag#id.class` + đoạn text đầu của element                                        |
+| CSS selectors   | Cả 4 level của specificity slider, mỗi level kèm số element khớp và nút Copy      |
+| XPath           | Path neo theo id ổn định gần nhất, hoặc absolute path; kèm số node khớp           |
+| Contrast        | Tỉ lệ tương phản WCAG, swatch màu chữ/nền, verdict AA/AAA/Fail                    |
+| Accessibility   | Danh sách phát hiện, phân 3 mức error / warn / info                               |
+| Computed styles | Size, display, position + z-index, font, overflow, opacity, margin/border/padding |
+
+Badge số match dùng màu để đọc nhanh: xanh = unique (1 element), vàng = nhiều element, đỏ = 0 hoặc selector invalid. Đây là tín hiệu quan trọng khi chọn selector để block — selector khớp 30 element thường là quá rộng.
+
+### 10bis.3. Contrast ratio
+
+Công thức WCAG 2.1: `(L1 + 0.05) / (L2 + 0.05)` với `L` là relative luminance.
+
+- Màu nền **không** lấy trực tiếp từ element mà đi ngược lên cây cha, alpha-composite từng lớp `background-color` cho tới khi gặp lớp đục. Nếu lên tới `<html>` vẫn còn trong suốt thì composite tiếp lên nền trắng mặc định của canvas.
+- Màu chữ có alpha < 1 cũng được composite lên nền trước khi tính.
+- Ngưỡng: text thường AA ≥ 4.5, AAA ≥ 7; text lớn (≥ 24px, hoặc ≥ 18.66px và bold ≥ 700) AA ≥ 3, AAA ≥ 4.5.
+- Chỉ tính khi element có **direct text node**. Element chỉ chứa element con thì báo "không có text trực tiếp" thay vì đưa ra số sai.
+- Nếu trên đường đi có `background-image`/gradient, kết quả được đánh dấu là ước lượng — extension không sample pixel thật.
+
+### 10bis.4. Accessibility checks
+
+| Check                                               | Mức   |
+| --------------------------------------------------- | ----- |
+| `<img>` không có attribute `alt`                    | error |
+| `alt=""` (ảnh trang trí)                            | info  |
+| Element tương tác không có accessible name          | error |
+| Accessible name chỉ đến từ `title`/`placeholder`    | warn  |
+| Form control không có `<label>`/`aria-label`        | error |
+| `<a>` không có `href`                               | warn  |
+| `role` tương tác nhưng `tabindex < 0`               | error |
+| `tabindex > 0`                                      | warn  |
+| `aria-hidden="true"` bọc nội dung focusable         | error |
+| Contrast dưới ngưỡng AA                             | error |
+| Contrast đạt AA nhưng chưa AAA                      | info  |
+| Element không hiển thị (display/visibility/opacity) | info  |
+
+Accessible name được resolve theo thứ tự rút gọn: `aria-labelledby` → `aria-label` → `alt` → `<label>` → text content → `img[alt]` con → `title` → `placeholder`. Đây là bản đơn giản hoá của accname spec, đủ bắt các lỗi phổ biến chứ không thay thế axe-core.
+
 ## 11. Context menu
 
 Extension cần tạo context menu:
 
 ```text id="2u49i7"
 Element Filter
-└── Block element
+├── Block element
+└── Inspect element
 ```
 
-Khi user chọn `Block element`:
+Khi user chọn `Block element` / `Inspect element`:
 
 - Extension inject picker vào tab hiện tại.
-- Bắt đầu Block Element Mode.
+- Bắt đầu picker với tab tương ứng đang mở.
 
 ## 12. Permissions
 
@@ -659,6 +715,7 @@ extension/
 ├── background.js
 ├── content.js
 ├── element-picker.js
+├── element-inspector.js
 ├── selector-generator.js
 ├── rule-matcher.js
 ├── popup.html
@@ -705,6 +762,18 @@ Phụ trách:
 - Mở filter creation panel.
 - Preview selector.
 - Cancel/create rule.
+
+## 13.4bis. `element-inspector.js`
+
+Phụ trách phân tích thuần tuý, không đụng DOM và không render UI:
+
+- Sinh XPath (neo theo id ổn định, hoặc absolute) và đếm số node khớp.
+- Alpha-composite background qua các lớp cha để ra màu nền thực tế.
+- Tính contrast ratio theo WCAG 2.1 và so với ngưỡng AA/AAA.
+- Resolve accessible name theo bản rút gọn của accname spec.
+- Chạy bộ check accessibility, trả về list `{ level, message }`.
+
+`element-picker.js` gọi `ElementInspector.inspect(element)` rồi render kết quả.
 
 ## 13.5. `selector-generator.js`
 

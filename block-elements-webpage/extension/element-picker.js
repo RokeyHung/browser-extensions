@@ -1,25 +1,38 @@
-// element-picker.js — Block Element Mode UI
+// element-picker.js — Block Element / Inspect Element UI
+//
+// One picker, two tabs: "Block" creates a filter rule, "Inspect" reports what
+// element-inspector.js found. Both operate on the same picked element, so you
+// can check what you are about to hide before hiding it.
 
 const ElementPicker = (() => {
   let active = false;
   let currentTarget = null;
   let selectors = [];
+  let unstableWarning = null;
   let currentLevel = 2;
   let customSelector = '';
   let isCustom = false;
   let scopeOption = 'exact';
+  let customDomain = '';
   let previewActive = false;
+  let activeTab = 'block';
+  let report = null;
 
   let overlayEl = null;
   let highlightEl = null;
   let tooltipEl = null;
   let panelEl = null;
 
+  // Names for the four levels produced by SelectorGenerator, in slider order.
+  const LEVEL_LABELS = ['Least specific', 'Medium', 'Specific', 'Full path'];
+
   // ─── Entry ────────────────────────────────────────────────────────────────
 
-  function activate() {
+  // mode: 'block' (default) or 'inspect' — decides which tab opens first.
+  function activate(mode) {
     if (active) return;
     active = true;
+    activeTab = mode === 'inspect' ? 'inspect' : 'block';
     document.body.classList.add('ef-picking');
     createChrome();
     document.addEventListener('mouseover', onMouseOver, true);
@@ -38,6 +51,7 @@ const ElementPicker = (() => {
     document.removeEventListener('keydown', onKeyDown, true);
     currentTarget = null;
     selectors = [];
+    report = null;
     panelEl = null;
   }
 
@@ -136,33 +150,72 @@ const ElementPicker = (() => {
     currentTarget = element;
     const result = SelectorGenerator.generate(element);
     selectors = result.selectors;
+    unstableWarning = result.unstableWarning;
     currentLevel = 2;
     isCustom = false;
     previewActive = false;
     scopeOption = 'exact';
-
-    const hostname = location.hostname;
+    report = null;
 
     panelEl = document.createElement('div');
     panelEl.id = 'ef-panel';
-    panelEl.innerHTML = buildPanelHTML(hostname, result);
     document.documentElement.appendChild(panelEl);
 
-    attachPanelListeners(result.unstableWarning);
-    updateMatchCount();
-    highlightMatchedElements();
+    renderPanel();
   }
 
-  function buildPanelHTML(hostname, result) {
+  // Re-renders header, tab bar, body and footer for the active tab. Selector
+  // state (level, custom text, scope) lives in module scope, so switching tabs
+  // and coming back keeps whatever was typed.
+  function renderPanel() {
+    const isInspect = activeTab === 'inspect';
+
+    // Tabs are the top row of the panel: the old header title just repeated the
+    // active tab's name.
+    panelEl.innerHTML = `
+      <div class="ef-panel-header ef-header-tabs">
+        <div class="ef-tabs">
+          <button class="ef-tab ${isInspect ? '' : 'ef-tab-active'}" data-tab="block">Block</button>
+          <button class="ef-tab ${isInspect ? 'ef-tab-active' : ''}" data-tab="inspect">Inspect</button>
+        </div>
+        <button id="ef-close-btn" title="Cancel (Esc)">&#x2715;</button>
+      </div>
+      ${isInspect ? buildInspectHTML() : buildBlockHTML(location.hostname)}
+    `;
+
+    panelEl.querySelector('#ef-close-btn').addEventListener('click', deactivate);
+    panelEl.querySelectorAll('.ef-tab').forEach((tab) => {
+      tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    });
+
+    if (isInspect) {
+      attachInspectListeners();
+    } else {
+      attachPanelListeners();
+      updateLevelIndicator();
+      updateMatchCount();
+      highlightMatchedElements();
+    }
+  }
+
+  function switchTab(tab) {
+    if (tab === activeTab) return;
+    // Preview hides the element, which would make every computed style read as
+    // "not visible" — restore it before inspecting.
+    if (tab === 'inspect') {
+      restorePreview();
+      clearHighlights();
+    }
+    activeTab = tab;
+    renderPanel();
+  }
+
+  function buildBlockHTML(hostname) {
     const baseDomain = hostname.replace(/^www\./, '');
     const parts = baseDomain.split('.');
     const root = parts.slice(0, -1).join('.');
 
     return `
-      <div class="ef-panel-header">
-        <span>Block Element</span>
-        <button id="ef-close-btn" title="Cancel (Esc)">&#x2715;</button>
-      </div>
       <div class="ef-panel-body">
         <div class="ef-field">
           <div class="ef-label">Site</div>
@@ -172,51 +225,57 @@ const ElementPicker = (() => {
         <div class="ef-field">
           <div class="ef-label">Apply to</div>
           <div class="ef-radio-group" id="ef-scope-group">
-            <label><input type="radio" name="ef-scope" value="exact" checked> ${escapeHtml(baseDomain)} <span style="color:#9ca3af">(+ www &amp; subdomains)</span></label>
-            ${root ? `<label><input type="radio" name="ef-scope" value="wildcard-sub"> *.${escapeHtml(baseDomain)}</label>` : ''}
-            ${root ? `<label><input type="radio" name="ef-scope" value="wildcard-tld"> ${escapeHtml(root)}.*</label>` : ''}
-            <label><input type="radio" name="ef-scope" value="custom"> Custom</label>
+            <label><input type="radio" name="ef-scope" value="exact" ${scopeOption === 'exact' ? 'checked' : ''}> ${escapeHtml(baseDomain)} <span style="color:#9ca3af">(+ www &amp; subdomains)</span></label>
+            ${root ? `<label><input type="radio" name="ef-scope" value="wildcard-sub" ${scopeOption === 'wildcard-sub' ? 'checked' : ''}> *.${escapeHtml(baseDomain)}</label>` : ''}
+            ${root ? `<label><input type="radio" name="ef-scope" value="wildcard-tld" ${scopeOption === 'wildcard-tld' ? 'checked' : ''}> ${escapeHtml(root)}.*</label>` : ''}
+            <label><input type="radio" name="ef-scope" value="custom" ${scopeOption === 'custom' ? 'checked' : ''}> Custom</label>
           </div>
-          <input type="text" id="ef-custom-domain" placeholder="e.g. *.example.*" style="display:none;margin-top:6px;width:100%;box-sizing:border-box;border:1px solid #e0e7ff;border-radius:6px;padding:6px 8px;font-size:12px;outline:none;">
+          <input type="text" id="ef-custom-domain" placeholder="e.g. *.example.*" value="${escapeHtml(customDomain)}" style="display:${scopeOption === 'custom' ? 'block' : 'none'};margin-top:6px;width:100%;box-sizing:border-box;border:1px solid #e0e7ff;border-radius:6px;padding:6px 8px;font-size:12px;outline:none;">
         </div>
 
         <div class="ef-field">
           <div class="ef-label">Selector</div>
           <textarea id="ef-selector-edit" class="ef-selector-edit"></textarea>
-          ${result.unstableWarning ? `<div class="ef-unstable-warning">&#9888; ${escapeHtml(result.unstableWarning)}</div>` : ''}
+          ${unstableWarning ? `<div class="ef-unstable-warning">&#9888; ${escapeHtml(unstableWarning)}</div>` : ''}
         </div>
 
         <div class="ef-field">
-          <div class="ef-label">Specificity</div>
+          <div class="ef-label ef-label-row">
+            <span>Specificity</span>
+            <span class="ef-level-badge" id="ef-level-badge"></span>
+          </div>
           <div class="ef-slider-container">
             <span class="ef-slider-label">less</span>
             <input type="range" id="ef-specificity" class="ef-slider" min="0" max="3" value="${currentLevel}" step="1">
             <span class="ef-slider-label">more</span>
           </div>
+          <div class="ef-ticks">
+            ${LEVEL_LABELS.map((label, index) => `<button class="ef-tick" data-level="${index}" title="${escapeHtml(label)}">${index + 1}</button>`).join('')}
+          </div>
           <div class="ef-match-count" id="ef-match-count">Checking…</div>
         </div>
       </div>
       <div class="ef-panel-footer">
-        <button class="ef-btn ef-btn-ghost" id="ef-preview-btn">Preview</button>
+        <button class="ef-btn ef-btn-ghost" id="ef-preview-btn">${previewActive ? 'Restore' : 'Preview'}</button>
         <button class="ef-btn ef-btn-secondary" id="ef-cancel-btn">Cancel</button>
         <button class="ef-btn ef-btn-primary" id="ef-create-btn">Create</button>
       </div>
     `;
   }
 
-  function attachPanelListeners(unstableWarning) {
-    panelEl.querySelector('#ef-close-btn').addEventListener('click', deactivate);
+  function attachPanelListeners() {
     panelEl.querySelector('#ef-cancel-btn').addEventListener('click', deactivate);
     panelEl.querySelector('#ef-preview-btn').addEventListener('click', togglePreview);
     panelEl.querySelector('#ef-create-btn').addEventListener('click', createRule);
 
     const slider = panelEl.querySelector('#ef-specificity');
-    slider.addEventListener('input', () => {
-      currentLevel = parseInt(slider.value, 10);
-      isCustom = false;
-      syncSelectorToPanel();
-      clearHighlights();
-      highlightMatchedElements();
+    slider.addEventListener('input', () => setLevel(parseInt(slider.value, 10)));
+
+    // The numbered ticks do the same job as the slider. They exist because a
+    // native range input is easy for page CSS to wash out, and because the
+    // level names are otherwise invisible.
+    panelEl.querySelectorAll('.ef-tick').forEach((tick) => {
+      tick.addEventListener('click', () => setLevel(Number(tick.dataset.level)));
     });
 
     const selectorEdit = panelEl.querySelector('#ef-selector-edit');
@@ -224,18 +283,49 @@ const ElementPicker = (() => {
     selectorEdit.addEventListener('input', () => {
       isCustom = true;
       customSelector = selectorEdit.value.trim();
+      updateLevelIndicator();
       updateMatchCount();
       clearHighlights();
       highlightMatchedElements();
+    });
+
+    const customDomainInput = panelEl.querySelector('#ef-custom-domain');
+    customDomainInput.addEventListener('input', () => {
+      customDomain = customDomainInput.value;
     });
 
     const scopeRadios = panelEl.querySelectorAll('input[name="ef-scope"]');
     scopeRadios.forEach((r) => {
       r.addEventListener('change', () => {
         scopeOption = r.value;
-        const customDomainInput = panelEl.querySelector('#ef-custom-domain');
         customDomainInput.style.display = scopeOption === 'custom' ? 'block' : 'none';
       });
+    });
+  }
+
+  function setLevel(level) {
+    currentLevel = level;
+    isCustom = false;
+
+    const slider = panelEl && panelEl.querySelector('#ef-specificity');
+    if (slider) slider.value = String(level);
+
+    updateLevelIndicator();
+    syncSelectorToPanel();
+    clearHighlights();
+    highlightMatchedElements();
+  }
+
+  // Shows which level is active as text, so it does not depend on the slider
+  // thumb being visible.
+  function updateLevelIndicator() {
+    if (!panelEl) return;
+
+    const badge = panelEl.querySelector('#ef-level-badge');
+    if (badge) badge.textContent = isCustom ? 'edited by hand' : `${currentLevel + 1}/4 · ${LEVEL_LABELS[currentLevel]}`;
+
+    panelEl.querySelectorAll('.ef-tick').forEach((tick) => {
+      tick.classList.toggle('ef-tick-active', !isCustom && Number(tick.dataset.level) === currentLevel);
     });
   }
 
@@ -455,6 +545,167 @@ const ElementPicker = (() => {
     panelEl.querySelector('#ef-done-btn').addEventListener('click', deactivate);
 
     if (highlightEl) highlightEl.style.display = 'none';
+  }
+
+  // ─── Inspect tab ──────────────────────────────────────────────────────────
+
+  function buildInspectHTML() {
+    report = report || ElementInspector.inspect(currentTarget);
+    const r = report;
+
+    const identity = [r.tag, r.id ? `#${r.id}` : '', r.stableClasses.length ? `.${r.stableClasses.join('.')}` : ''].filter(Boolean).join('');
+
+    return `
+      <div class="ef-panel-body ef-inspect-body">
+        <div class="ef-insp-identity">${escapeHtml(identity)}</div>
+        ${r.text ? `<div class="ef-insp-text">“${escapeHtml(r.text)}”</div>` : ''}
+
+        <div class="ef-insp-section">
+          <div class="ef-label">CSS selectors</div>
+          ${r.selectors
+            .map((selector, index) => {
+              const count = r.selectorMatches[index];
+              const badge = count === 1 ? 'ef-count-unique' : count === 0 || count === -1 ? 'ef-count-bad' : 'ef-count-many';
+              return `
+                <div class="ef-insp-sel">
+                  <div class="ef-insp-sel-head">
+                    <span class="ef-insp-sel-level">${LEVEL_LABELS[index]}</span>
+                    <span class="ef-insp-count ${badge}">${count === -1 ? 'invalid' : `${count} match${count === 1 ? '' : 'es'}`}</span>
+                    <button class="ef-copy" data-copy="${escapeHtml(selector)}">Copy</button>
+                  </div>
+                  <code class="ef-code">${escapeHtml(selector)}</code>
+                </div>`;
+            })
+            .join('')}
+          ${r.unstableWarning ? `<div class="ef-unstable-warning">&#9888; ${escapeHtml(r.unstableWarning)}</div>` : ''}
+        </div>
+
+        <div class="ef-insp-section">
+          <div class="ef-label">
+            XPath
+            <span class="ef-insp-count ${r.xpathMatches === 1 ? 'ef-count-unique' : r.xpathMatches < 1 ? 'ef-count-bad' : 'ef-count-many'}">${r.xpathMatches === -1 ? 'invalid' : `${r.xpathMatches} match${r.xpathMatches === 1 ? '' : 'es'}`}</span>
+          </div>
+          <div class="ef-insp-sel">
+            <code class="ef-code">${escapeHtml(r.xpath)}</code>
+            <button class="ef-copy ef-copy-block" data-copy="${escapeHtml(r.xpath)}">Copy XPath</button>
+          </div>
+        </div>
+
+        ${buildContrastHTML(r)}
+
+        <div class="ef-insp-section">
+          <div class="ef-label">Accessibility</div>
+          ${
+            r.findings.length
+              ? r.findings
+                  .map(
+                    (finding) => `
+                      <div class="ef-finding ef-finding-${finding.level}">
+                        <span class="ef-finding-dot"></span>
+                        <span>${escapeHtml(finding.message)}</span>
+                      </div>`
+                  )
+                  .join('')
+              : '<div class="ef-finding ef-finding-ok"><span class="ef-finding-dot"></span><span>No issues found in these checks.</span></div>'
+          }
+          ${
+            r.accessibleName
+              ? `<div class="ef-insp-kv"><span>Accessible name</span><span>${escapeHtml(r.accessibleName.name)} <em>(${escapeHtml(r.accessibleName.from)})</em></span></div>`
+              : ''
+          }
+        </div>
+
+        <div class="ef-insp-section">
+          <div class="ef-label">Computed styles</div>
+          <div class="ef-insp-kv"><span>Size</span><span>${r.box.width} × ${r.box.height}</span></div>
+          <div class="ef-insp-kv"><span>Display</span><span>${escapeHtml(r.styles.display)}</span></div>
+          <div class="ef-insp-kv"><span>Position</span><span>${escapeHtml(r.styles.position)}${r.styles.zIndex !== 'auto' ? ` · z-index ${escapeHtml(r.styles.zIndex)}` : ''}</span></div>
+          <div class="ef-insp-kv"><span>Font</span><span>${escapeHtml(r.styles.font)}</span></div>
+          <div class="ef-insp-kv"><span>Overflow</span><span>${escapeHtml(r.styles.overflow)}</span></div>
+          <div class="ef-insp-kv"><span>Opacity</span><span>${escapeHtml(r.styles.opacity)}</span></div>
+          <div class="ef-insp-kv"><span>Margin</span><span>${escapeHtml(r.boxModel.margin)}</span></div>
+          <div class="ef-insp-kv"><span>Border</span><span>${escapeHtml(r.boxModel.border)}</span></div>
+          <div class="ef-insp-kv"><span>Padding</span><span>${escapeHtml(r.boxModel.padding)}</span></div>
+        </div>
+      </div>
+      <div class="ef-panel-footer">
+        <button class="ef-btn ef-btn-secondary" id="ef-insp-close">Close</button>
+        <button class="ef-btn ef-btn-primary" id="ef-insp-block">Block this</button>
+      </div>
+    `;
+  }
+
+  function buildContrastHTML(r) {
+    if (!r.contrast) {
+      return `
+        <div class="ef-insp-section">
+          <div class="ef-label">Contrast</div>
+          <div class="ef-insp-muted">No direct text in this element — pick the element that holds the text.</div>
+        </div>`;
+    }
+
+    if (r.contrast.unsupported) {
+      return `
+        <div class="ef-insp-section">
+          <div class="ef-label">Contrast</div>
+          <div class="ef-insp-muted">Colour uses a format this checker cannot read.</div>
+        </div>`;
+    }
+
+    const c = r.contrast;
+    const verdict = c.passesAAA ? 'AAA' : c.passesAA ? 'AA' : 'Fail';
+    const verdictClass = c.passesAAA ? 'ef-pass-aaa' : c.passesAA ? 'ef-pass-aa' : 'ef-pass-fail';
+
+    return `
+      <div class="ef-insp-section">
+        <div class="ef-label">Contrast</div>
+        <div class="ef-contrast-row">
+          <span class="ef-swatch" style="background:${c.foregroundHex}"></span>
+          <span class="ef-swatch" style="background:${c.backgroundHex}"></span>
+          <span class="ef-contrast-ratio">${c.ratio}:1</span>
+          <span class="ef-contrast-verdict ${verdictClass}">${verdict}</span>
+        </div>
+        <div class="ef-insp-kv"><span>Text</span><span>${escapeHtml(c.foreground)}</span></div>
+        <div class="ef-insp-kv"><span>Background</span><span>${escapeHtml(c.background)}</span></div>
+        <div class="ef-insp-kv"><span>Threshold</span><span>${c.largeText ? 'large text — AA 3:1, AAA 4.5:1' : 'normal text — AA 4.5:1, AAA 7:1'}</span></div>
+      </div>`;
+  }
+
+  function attachInspectListeners() {
+    panelEl.querySelector('#ef-insp-close').addEventListener('click', deactivate);
+    panelEl.querySelector('#ef-insp-block').addEventListener('click', () => switchTab('block'));
+
+    panelEl.querySelectorAll('.ef-copy').forEach((btn) => {
+      btn.addEventListener('click', () => copyToClipboard(btn.dataset.copy, btn));
+    });
+  }
+
+  // clipboard.writeText is blocked on some pages by permissions policy, so fall
+  // back to the old execCommand path rather than failing silently.
+  async function copyToClipboard(text, btn) {
+    const label = btn.textContent;
+    let ok = true;
+
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      try {
+        const scratch = document.createElement('textarea');
+        scratch.value = text;
+        scratch.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+        document.body.appendChild(scratch);
+        scratch.select();
+        ok = document.execCommand('copy');
+        scratch.remove();
+      } catch {
+        ok = false;
+      }
+    }
+
+    btn.textContent = ok ? 'Copied' : 'Failed';
+    setTimeout(() => {
+      btn.textContent = label;
+    }, 1200);
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────

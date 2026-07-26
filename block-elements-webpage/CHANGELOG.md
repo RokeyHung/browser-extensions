@@ -4,6 +4,39 @@ Tất cả thay đổi đáng chú ý của extension **Element Filter** đượ
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-07-26
+
+### Added
+
+- **Inspect Element Mode** — cùng picker sẵn có, thêm tab `Inspect` bên cạnh `Block`. Mở từ popup (`🔍 Inspect element`), context menu (`Element Filter` → `Inspect element`), hoặc bấm chuyển tab khi đang chọn xong element mà không cần chọn lại.
+- **Selector kèm số match** — panel Inspect hiện cả 4 level của specificity slider, mỗi level kèm badge số element khớp: xanh = unique, vàng = nhiều, đỏ = 0 hoặc invalid. Đây là thứ trước đây phải đoán khi kéo slider ở tab Block.
+- **XPath** — neo theo id ổn định gần nhất (`//*[@id="main"]/div[2]`), fallback absolute path; kèm số node khớp và nút copy.
+- **Contrast ratio theo WCAG 2.1** — màu nền lấy bằng cách đi ngược lên cây cha và alpha-composite từng lớp `background-color` cho tới lớp đục, cuối cùng composite lên nền trắng của canvas; màu chữ có alpha cũng được composite trước khi tính. Ngưỡng phân biệt text thường và text lớn (≥ 24px, hoặc ≥ 18.66px + bold).
+- **12 accessibility check** — thiếu `alt`, element tương tác không có accessible name, form control không có label, `role` tương tác mà `tabindex < 0`, `aria-hidden` bọc nội dung focusable, `tabindex > 0`, contrast dưới AA… Phân 3 mức error / warn / info.
+- Computed styles chính: size, display, position + z-index, font, overflow, opacity, margin/border/padding.
+- Module mới `element-inspector.js` (phân tích thuần tuý) và `SelectorGenerator` export thêm `isUnstableClass` / `isUnstableId` để dùng lại.
+
+### Fixed
+
+- **Bấm `Create` không có phản ứng gì sau khi reload extension** — content script cũ vẫn chạy trên các tab đang mở, nhưng `chrome.runtime` của nó đã bị gỡ, nên `chrome.runtime.sendMessage` ném `TypeError: Cannot read properties of undefined (reading 'sendMessage')` và click trôi đi im lặng. Giờ picker kiểm tra `chrome.runtime.id` trước khi gửi, bắt cả `lastError`, và hiện hộp lỗi đỏ ngay trong panel: "Element Filter was reloaded or updated. Refresh this page (F5), then pick the element again." `content.js` cũng guard tương tự để không ném lỗi ở mỗi lần page load trong tab orphaned. Lỗi này có từ trước, không phải do bản 1.1.0 gây ra — chỉ là dev reload extension thì gặp thường xuyên.
+
+- **Specificity slider không nhìn rõ trên một số site** — panel nằm trong DOM của trang nên CSS của site đè được lên `input[type=range]`, làm thanh trượt gần như tàng hình. Giờ track và thumb được vẽ tường minh (`-webkit-appearance: none` + màu cụ thể, có `!important` để rule của trang không ghi đè), kèm bản dựng cho `::-moz-range-*`.
+
+### Changed
+
+- **Tab `Block` / `Inspect` chuyển lên hàng trên cùng của panel**, nằm ngay trong thanh header màu tím thay vì là một hàng riêng bên dưới. Tiêu đề cũ ("Block Element" / "Inspect Element") bị bỏ vì trùng nghĩa với tên tab đang chọn — đổi lại panel gọn hơn một hàng. Tab đang chọn có gạch chân trắng. Màn hình "Filter Created" vẫn dùng header dạng tiêu đề như cũ.
+- **Specificity hiện rõ đang ở level nào** — thêm badge `3/4 · Specific` cạnh nhãn, và hàng 4 nút số bấm chọn trực tiếp được (không phụ thuộc vào việc slider có render đúng hay không). Sửa selector bằng tay thì badge đổi thành `edited by hand`.
+- Panel rộng 340px → 380px, body của tab Inspect scroll trong `max-height: 62vh`.
+- Panel giờ render lại theo tab; state của tab Block (level slider, selector đã sửa tay, scope domain, custom domain) được giữ nguyên khi chuyển tab qua lại.
+- Chuyển sang tab Inspect sẽ tự tắt Preview trước, vì Preview ẩn element nên mọi computed style sẽ đọc ra "không hiển thị".
+
+### Notes
+
+- Contrast chỉ tính khi element có **text node trực tiếp**. Element chỉ chứa element con sẽ báo "no direct text" thay vì đưa ra con số sai — muốn đo thì chọn đúng element chứa chữ.
+- Nếu trên đường đi lên có `background-image`/gradient, kết quả được đánh dấu là ước lượng: extension đọc computed style chứ không sample pixel thật.
+- Bộ check accessibility là bản rút gọn, bắt các lỗi phổ biến chứ **không thay thế** axe-core hay Lighthouse.
+- Copy dùng `navigator.clipboard`, có fallback `execCommand` cho trang chặn clipboard API bằng permissions policy.
+
 ## [1.0.1] - 2026-07-22
 
 ### Fixed

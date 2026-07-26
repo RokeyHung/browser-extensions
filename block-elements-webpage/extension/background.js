@@ -56,28 +56,34 @@ chrome.runtime.onInstalled.addListener(() => {
       parentId: 'efParent',
       contexts: ['all'],
     });
+    chrome.contextMenus.create({
+      id: 'efInspectElement',
+      title: 'Inspect element',
+      parentId: 'efParent',
+      contexts: ['all'],
+    });
   });
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === 'efBlockElement') {
-    startPickerInTab(tab.id);
-  }
+  if (info.menuItemId === 'efBlockElement') startPickerInTab(tab.id, 'block');
+  if (info.menuItemId === 'efInspectElement') startPickerInTab(tab.id, 'inspect');
 });
 
 // ─── Picker injection ──────────────────────────────────────────────────────────
 
-async function startPickerInTab(tabId) {
+async function startPickerInTab(tabId, mode = 'block') {
   try {
     // Ping content script first to check if it's alive
     const pingResult = await chrome.tabs.sendMessage(tabId, { type: 'ping' }).catch(() => null);
     if (pingResult && pingResult.alive) {
-      await chrome.tabs.sendMessage(tabId, { type: 'startPicker' });
+      await chrome.tabs.sendMessage(tabId, { type: 'startPicker', mode });
     } else {
       // Content script not ready — inject via scripting API
       await chrome.scripting.executeScript({
         target: { tabId },
-        func: () => window.dispatchEvent(new CustomEvent('elementFilter:startPicker')),
+        func: (pickerMode) => window.dispatchEvent(new CustomEvent('elementFilter:startPicker', { detail: { mode: pickerMode } })),
+        args: [mode],
       });
     }
   } catch (e) {
@@ -110,7 +116,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return true;
 
     case 'startPickerInTab':
-      startPickerInTab(msg.tabId).then(() => sendResponse({ success: true }));
+      startPickerInTab(msg.tabId, msg.mode).then(() => sendResponse({ success: true }));
       return true;
 
     case 'reloadRulesInTab':
