@@ -14,12 +14,55 @@
     document.addEventListener('click', onClickCapture, true);
     document.addEventListener('submit', onSubmitCapture, true);
     window.addEventListener('message', onGuardMessage);
-    chrome.runtime.onMessage.addListener(onRuntimeMessage);
+    if (contextAlive()) chrome.runtime.onMessage.addListener(onRuntimeMessage);
+  }
+
+  // ─── Extension context lifetime ─────────────────────────────────────────
+  // This script keeps running after the extension is reloaded, updated or
+  // disabled, but its chrome.runtime is torn down. That matters more here than
+  // in a passive extension: interception would keep calling preventDefault()
+  // using stale config while being unable to report, show a toast or offer
+  // "Open once" — every external link on the page would die silently.
+
+  let stoodDown = false;
+
+  function contextAlive() {
+    return typeof chrome !== 'undefined' && !!chrome.runtime && !!chrome.runtime.id;
+  }
+
+  // Give the page back to the user: stop intercepting here and tell the
+  // MAIN-world guard to stop patching window.open.
+  function standDown() {
+    if (stoodDown) return;
+    stoodDown = true;
+    config = { active: false };
+    document.removeEventListener('click', onClickCapture, true);
+    document.removeEventListener('submit', onSubmitCapture, true);
+    pushConfigToGuard();
+    dismissToast();
+  }
+
+  // Returns false when the message could not be sent.
+  function sendMessage(message, callback) {
+    if (!contextAlive()) {
+      standDown();
+      return false;
+    }
+    try {
+      chrome.runtime.sendMessage(message, (resp) => {
+        if (chrome.runtime.lastError) return;
+        if (callback) callback(resp);
+      });
+      return true;
+    } catch {
+      standDown();
+      return false;
+    }
   }
 
   function requestConfig() {
-    chrome.runtime.sendMessage({ type: 'getSiteConfig', url: location.href }, (resp) => {
-      if (chrome.runtime.lastError || !resp) return;
+    sendMessage({ type: 'getSiteConfig', url: location.href }, (resp) => {
+      if (!resp) return;
       config = resp;
       pushConfigToGuard();
       if (Array.isArray(resp.pendingToasts)) {
@@ -83,6 +126,8 @@
   // ─── Click interception (spec §8.2, §8.3) ────────────────────────────────
   function onClickCapture(e) {
     if (!config.active) return;
+    // Check before any preventDefault: never block what we cannot report on.
+    if (!contextAlive()) return standDown();
     const anchor = e.target && e.target.closest ? e.target.closest('a[href]') : null;
     if (!anchor) return;
 
@@ -104,6 +149,7 @@
   // ─── Form submit interception (spec §8.7) ────────────────────────────────
   function onSubmitCapture(e) {
     if (!config.active) return;
+    if (!contextAlive()) return standDown();
     const form = e.target;
     if (!form || form.tagName !== 'FORM') return;
     const action = form.getAttribute('action');
@@ -142,21 +188,18 @@
 
   // ─── Report + toast ──────────────────────────────────────────────────────
   function onBlocked(decision) {
-    chrome.runtime.sendMessage(
-      { type: 'reportBlocked', sourceUrl: location.href, targetUrl: decision.targetUrl, reason: decision.reason },
-      (resp) => {
-        if (chrome.runtime.lastError) return;
-        if (resp && resp.show === false) return; // rate-limited
-        if (config.settings && config.settings.showToast === false) return;
-        showToast({
-          targetUrl: decision.targetUrl,
-          targetHostname: hostnameOf(decision.targetUrl),
-          reason: decision.reason,
-          sourceHostname: config.sourceHostname,
-          suppressed: resp ? resp.suppressed : 0,
-        });
-      }
-    );
+    const settings = config.settings || {};
+    sendMessage({ type: 'reportBlocked', sourceUrl: location.href, targetUrl: decision.targetUrl, reason: decision.reason }, (resp) => {
+      if (resp && resp.show === false) return; // rate-limited
+      if (settings.showToast === false) return;
+      showToast({
+        targetUrl: decision.targetUrl,
+        targetHostname: hostnameOf(decision.targetUrl),
+        reason: decision.reason,
+        sourceHostname: config.sourceHostname,
+        suppressed: resp ? resp.suppressed : 0,
+      });
+    });
   }
 
   function hostnameOf(url) {
@@ -210,9 +253,13 @@
 
   function handleToastAction(action, url, targetHostname) {
     if (action === 'open') {
-      chrome.runtime.sendMessage({ type: 'openOnce', url });
+      // If the extension is gone, open it from here rather than leaving the
+      // user with a link that does nothing.
+      if (!sendMessage({ type: 'openOnce', url }) && url) {
+        window.open(url, '_blank', 'noopener');
+      }
     } else if (action === 'allow') {
-      chrome.runtime.sendMessage(
+      sendMessage(
         { type: 'alwaysAllow', sourceUrl: location.href, targetHostname },
         () => requestConfig() // refresh config + guard so it stops blocking
       );
