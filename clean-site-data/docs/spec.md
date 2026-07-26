@@ -46,7 +46,7 @@ Các dữ liệu cần hỗ trợ:
 | WebSQL          | Xoá nếu browser/API hỗ trợ                            |
 | File System     | Xoá nếu browser/API hỗ trợ                            |
 
-Sau khi clear xong, extension có thể reload tab hiện tại nếu user bật option `Reload after cleaning`.
+Sau khi clear xong, nếu user bật option `Go to homepage after cleaning`, extension điều hướng tab về trang chủ của site (origin root, ví dụ `https://animevsub.vn/`) thay vì reload URL hiện tại.
 
 ### 2.2. Ngoài scope
 
@@ -72,9 +72,9 @@ Là developer/tester, tôi muốn click extension trên trang hiện tại để
 
 Là user, tôi muốn chọn loại dữ liệu cần clear, ví dụ chỉ clear cookies hoặc clear cả IndexedDB và Cache Storage.
 
-### US-03: Reload sau khi clear
+### US-03: Về trang chủ sau khi clear
 
-Là user, tôi muốn extension tự reload tab sau khi clear xong để trang chạy lại với trạng thái mới.
+Là user, tôi muốn extension tự đưa tab về trang chủ của site sau khi clear xong, vì URL sâu (deep link) thường 404 hoặc bật login wall khi session đã bị xoá.
 
 ### US-04: Xem kết quả clear
 
@@ -99,7 +99,7 @@ https://example.com
 [✓] Cache Storage
 [✓] Service Worker
 
-[✓] Reload after cleaning
+[✓] Go to homepage after cleaning
 
 [Clean Site Data]
 ```
@@ -118,7 +118,7 @@ Clean completed
 ✓ Cache Storage
 ✓ Service Worker
 
-Reloaded current tab.
+Redirected to animevsub.vn
 ```
 
 Nếu có lỗi:
@@ -191,7 +191,7 @@ Extension thực hiện lần lượt:
    - `webSQL`
 
 4. Tổng hợp kết quả.
-5. Nếu user bật reload, reload active tab.
+5. Nếu user bật option, điều hướng active tab về origin root; nếu tab đã ở trang chủ thì reload.
 6. Hiển thị kết quả trong popup.
 
 ## 6. Permission
@@ -491,7 +491,7 @@ không bị ảnh hưởng.
 
 ### AC-04
 
-Nếu user bật `Reload after cleaning`, tab hiện tại reload sau khi clean xong.
+Nếu user bật `Go to homepage after cleaning`, tab hiện tại chuyển về origin root sau khi clean xong (tab đang ở trang chủ thì reload).
 
 ### AC-05
 
@@ -512,7 +512,7 @@ Version đầu chỉ cần hỗ trợ Chrome Manifest V3 với các chức năng
 - Clear IndexedDB.
 - Clear Cache Storage.
 - Unregister Service Worker.
-- Reload tab sau khi clear.
+- Về trang chủ (origin root) sau khi clear.
 - Hiển thị kết quả success/warning.
 
 ## 13. Future improvements

@@ -68,18 +68,50 @@ async function handleClean({ tabId, url, origin, options }) {
     }
   }
 
-  // 4. Reload tab
+  // 4. Send the tab back to the site's homepage (origin root), e.g. a tab on
+  //    https://animevsub.vn/phim/abc-123 lands on https://animevsub.vn/.
+  //    Deep links often 404 or bounce to a login wall once the session is gone,
+  //    so the homepage is the reliable place to land after cleaning.
   let reloaded = false;
+  let navigatedTo = null;
   if (options.reload) {
+    const homeUrl = getHomeUrl(url, origin);
     try {
-      await chrome.tabs.reload(tabId);
+      if (homeUrl && !isSameUrl(url, homeUrl)) {
+        await chrome.tabs.update(tabId, { url: homeUrl });
+        navigatedTo = homeUrl;
+      } else {
+        await chrome.tabs.reload(tabId);
+        navigatedTo = homeUrl || url;
+      }
       reloaded = true;
     } catch (_err) {
       // non-critical
     }
   }
 
-  return { results, reloaded };
+  return { results, reloaded, navigatedTo };
+}
+
+// Root URL of the site the tab is on. Keeps the scheme and the exact hostname
+// (including subdomain) and drops path, query and hash.
+function getHomeUrl(url, origin) {
+  try {
+    return `${new URL(url).origin}/`;
+  } catch (_err) {
+    return origin ? `${origin}/` : null;
+  }
+}
+
+// True when the tab is effectively already sitting on the homepage, so we should
+// force a reload instead of a same-URL navigation Chrome may serve from cache.
+function isSameUrl(current, homeUrl) {
+  try {
+    const a = new URL(current);
+    return a.pathname === '/' && !a.search && `${a.origin}/` === homeUrl;
+  } catch (_err) {
+    return false;
+  }
 }
 
 // Effective TLDs that span 2+ labels. Used to derive the registrable domain

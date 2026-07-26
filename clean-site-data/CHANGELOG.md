@@ -4,6 +4,15 @@ Tất cả thay đổi đáng chú ý của extension **Clean Site Data** đư�
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-07-26
+
+### Changed
+
+- **Sau khi clean thì về trang chủ của site** — option `Reload after cleaning` đổi thành `Go to homepage after cleaning`. Trước đây extension reload đúng URL đang mở; giờ tab được điều hướng về origin root, ví dụ đang ở `https://animevsub.vn/phim/abc-123` thì sau khi clean sẽ về `https://animevsub.vn/`. Lý do: khi session đã bị xoá, deep link thường 404 hoặc bị đẩy sang login wall, về trang chủ là chỗ đáp an toàn.
+- Origin root giữ nguyên scheme và hostname đầy đủ (kể cả subdomain), chỉ bỏ path/query/hash.
+- Nếu tab đã ở trang chủ, extension gọi `chrome.tabs.reload` thay vì điều hướng cùng URL (tránh Chrome trả về từ cache).
+- Footer kết quả trong popup hiển thị `Redirected to <host>` thay cho `Tab reloaded.`.
+
 ## [1.1.0] - 2026-07-22
 
 ### Fixed

@@ -153,7 +153,8 @@ function showResults(response, options) {
 
   footer.textContent = '';
   if (options.reload && response?.reloaded) {
-    footer.textContent = 'Tab reloaded.';
+    const target = prettyUrl(response.navigatedTo);
+    footer.textContent = target ? `Redirected to ${target}` : 'Tab reloaded.';
   } else if (hasError) {
     footer.textContent = 'Completed with warnings.';
   } else {
@@ -161,6 +162,16 @@ function showResults(response, options) {
   }
 
   document.getElementById('results').classList.add('visible');
+}
+
+// "https://animevsub.vn/" -> "animevsub.vn"
+function prettyUrl(url) {
+  if (!url) return '';
+  try {
+    return new URL(url).host;
+  } catch {
+    return '';
+  }
 }
 
 function showError(msg) {
