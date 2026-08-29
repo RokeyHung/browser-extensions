@@ -923,6 +923,7 @@ https://ads-example.com/landing
 5. Nếu target domain trong allowlist → allow.
 6. Nếu mode strict → block external.
 7. Nếu mode normal:
+
    - Block nếu trigger là `window.open`.
    - Block nếu target `_blank` external đáng ngờ.
    - Block nếu redirect external không phải từ link rõ ràng.

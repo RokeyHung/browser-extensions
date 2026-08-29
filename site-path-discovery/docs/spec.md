@@ -583,6 +583,7 @@ Ví dụ:
 Detection rule:
 
 - File extension:
+
   - `.js`
   - `.css`
   - `.png`
@@ -996,6 +997,7 @@ https://example.com/robots.txt
 ```
 
 3. Parse các dòng:
+
    - `Allow`
    - `Disallow`
    - `Sitemap`
@@ -1018,6 +1020,7 @@ Sitemaps: 1
 
 1. User click `Read sitemap`.
 2. Extension thử đọc sitemap từ:
+
    - `robots.txt`
    - `/sitemap.xml`
    - `/sitemap_index.xml`
@@ -1310,6 +1313,7 @@ Version đầu cần có:
 - Read `sitemap.xml`.
 - Basic limited crawler.
 - Path classification:
+
   - Page
   - API
   - Asset

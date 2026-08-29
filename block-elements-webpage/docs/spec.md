@@ -805,6 +805,7 @@ Khi generate selector, extension nên ưu tiên:
 1. `id` nếu id có vẻ ổn định.
 2. Class name có ý nghĩa.
 3. Attribute phổ biến:
+
    - `data-testid`
    - `data-test`
    - `aria-label`

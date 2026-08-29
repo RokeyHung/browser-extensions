@@ -157,8 +157,8 @@ Trang full-width (max 1200px), mở ở tab riêng.
 | `🔄 Refresh`       | Đọc lại toàn bộ storage của target tab                          |
 | `➕ Add entry`     | Mở drawer tạo entry mới cho tab đang xem (local/session/cookie) |
 | `📸 Save snapshot` | Chụp local + session + cookies                                  |
-| `⬇ Export JSON`    | Xuất dữ liệu tab đang xem, hoặc snapshot đang chọn              |
-| `⬆ Import JSON`    | Nạp file snapshot                                               |
+| `⬇ Export JSON`   | Xuất dữ liệu tab đang xem, hoặc snapshot đang chọn              |
+| `⬆ Import JSON`   | Nạp file snapshot                                               |
 | `🗑 Clear area`    | Xoá sạch area đang xem (có confirm)                             |
 
 ### 6.3. Summary cards

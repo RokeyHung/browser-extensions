@@ -157,6 +157,7 @@ Please open a normal http/https website.
 1. Lấy active tab hiện tại.
 2. Kiểm tra URL.
 3. Chỉ cho phép xử lý URL có protocol:
+
    - `http:`
    - `https:`
 
@@ -176,6 +177,7 @@ Extension thực hiện lần lượt:
 
 1. Clear cookies theo domain/origin.
 2. Inject script vào active tab để clear:
+
    - `localStorage`
    - `sessionStorage`
    - `IndexedDB`
@@ -183,6 +185,7 @@ Extension thực hiện lần lượt:
    - `Service Worker`
 
 3. Dùng `chrome.browsingData` để xoá thêm dữ liệu theo origin nếu API hỗ trợ:
+
    - `indexedDB`
    - `localStorage`
    - `cacheStorage`
@@ -295,6 +298,7 @@ Yêu cầu:
 
 - Xoá cookies của hostname hiện tại.
 - Xoá cả cookies có domain dạng:
+
   - `example.com`
   - `.example.com`
   - `sub.example.com`
@@ -520,6 +524,7 @@ Version đầu chỉ cần hỗ trợ Chrome Manifest V3 với các chức năng
 Có thể mở rộng thêm:
 
 - Preset:
+
   - Clean session only
   - Clean storage only
   - Clean all site data
