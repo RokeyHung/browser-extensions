@@ -25,6 +25,7 @@ const TARGETS = [
   'form-fill-profiles/extension/modules/form-matcher.js',
   'popup-redirect-guard/extension/injected-guard.js',
   'popup-redirect-guard/extension/modules/domain-matcher.js',
+  'storage-explorer/extension/modules/cookie-manager.js',
 ];
 
 // The marker lines are part of the block, so a copy carries its own proof of

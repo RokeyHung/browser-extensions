@@ -4,6 +4,18 @@ Tất cả thay đổi đáng chú ý của extension **Storage Explorer** đư�
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-08-30
+
+### Fixed
+
+- **Hiện và xoá cookie của site khác** — `EFFECTIVE_TLDS` là list chép tay (bản sao của Clean Site Data), thiếu nhiều country second-level phổ biến: `co.id`, `com.my`, `co.th`, `edu.vn`… Hệ quả: mở tab `shop.tokopedia.co.id` thì `getBaseDomain` ra `co.id`, mà `chrome.cookies.getAll({ domain })` khớp cả domain đó lẫn mọi subdomain — nên panel Cookies liệt kê cookie của **mọi site `.co.id`**, và nút Clear xoá sạch chúng. `restore(mode: 'replace')` cũng clear trước nên dính cùng đường.
+- Không chỉ là xoá nhầm: giá trị cookie của site khác hiện thẳng trong bảng, gồm cả session token đọc được qua tab inspect.
+- Nay dùng luật suy diễn dùng chung: nhãn registry (`co`, `com`, `net`, `org`, `edu`, `gov`, `ac`, `or`, `ne`, `go`, `mil`, `gob`, `nom`) đứng dưới ccTLD 2 ký tự thì là public suffix, nên phủ cả quốc gia chưa từng được liệt kê.
+
+### Changed
+
+- Phần tách eTLD+1 chuyển sang block dùng chung từ `shared/domain-suffix.js`, đồng bộ bằng `make sync-domain-suffix`. Comment cũ "Same list as the Clean Site Data extension" giờ thành ràng buộc kiểm tra được bằng `make check-domain-suffix` thay vì lời hứa suông.
+
 ## [1.0.0] - 2026-07-26
 
 ### Added
