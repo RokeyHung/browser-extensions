@@ -4,6 +4,20 @@ Tất cả thay đổi đáng chú ý của extension **Popup Redirect Guard** �
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-08-30
+
+### Fixed
+
+- **Bỏ lọt redirect/popup sang site lạ** — `isSameSite` dựa trên `getBaseDomain` chỉ lấy 2 nhãn cuối, comment trong code ghi thẳng là "approximate". Hệ quả: đứng ở `www.bbc.co.uk` thì `evil.co.uk` bị coi là **cùng site** nên được cho qua; tương tự `tokopedia.co.id` ↔ `attacker.co.id`, `alice.github.io` ↔ `bob.github.io`. Đây là lớp quyết định có chặn hay không, nên lỗi này vô hiệu hoá đúng chức năng chính của extension với mọi site nằm dưới public suffix nhiều nhãn — gồm cả `co.uk` rất phổ biến. Nay dùng luật eTLD+1 dùng chung.
+- **Pattern `*.name.*` khớp cả host của kẻ tấn công** — trước đây khớp bằng `parts.indexOf(middle)`, tức nhãn nằm ở bất kỳ vị trí nào cũng tính. Ai sở hữu `evil.com` chỉ cần dựng `www.facebook.evil.com` là lọt vào rule `*.facebook.*`. Nay pattern neo vào registrable domain: nhãn phải **là** site đó.
+- **Rule gợi ý không bảo vệ được chính trang đang mở** — `suggestPattern('www.bbc.co.uk')` trả về `co.*`, mà `co.*` không khớp cả `bbc.co.uk` lẫn `www.bbc.co.uk`. User bật bảo vệ nhưng thực tế rule không match gì. Nay trả `*.bbc.*`. Đổi từ dạng `name.*` sang `*.name.*` vì `name.*` chỉ khớp root domain, không khớp chính host `www.` đã sinh ra gợi ý đó — ví dụ trong comment cũ (`www.animevietsub.xyz` → `animevietsub.*`) cũng chưa từng chạy đúng.
+- **`name.*` khớp nhầm subdomain** — `facebook.*` từng khớp `facebook.evil.com` vì chỉ kiểm tra `parts[0]`. Nay yêu cầu host đúng bằng registrable domain của chính nó, đồng thời khớp được root domain nhiều nhãn như `facebook.co.uk` (trước bị loại vì điều kiện `parts.length === 2`).
+
+### Changed
+
+- `injected-guard.js` chạy trong page world cũng có bản `baseDomain` 2-nhãn riêng và đã được sửa cùng lúc. Bắt buộc phải khớp nhau: `config.baseDomain` do service worker tính, nếu hai bên lệch nhau thì extension sẽ chặn nhầm chính navigation nội bộ của site.
+- Phần tách eTLD+1 ở cả hai nơi chuyển sang block dùng chung từ `shared/domain-suffix.js`, đồng bộ bằng `make sync-domain-suffix`.
+
 ## [1.0.1] - 2026-07-26
 
 ### Fixed
