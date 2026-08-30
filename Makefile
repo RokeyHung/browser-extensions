@@ -12,14 +12,22 @@ PRETTIER_VERSION ?= 3.4.2
 PRETTIER ?= npx --yes prettier@$(PRETTIER_VERSION)
 
 .DEFAULT_GOAL := help
-.PHONY: help format format-check
+.PHONY: help format format-check sync-domain-suffix check-domain-suffix check
 
 help: ## Show the available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
-		| awk 'BEGIN {FS = ":.*?## "} {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
+		| awk 'BEGIN {FS = ":.*?## "} {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 format: ## Format every JS, HTML, CSS, JSON and Markdown file in the repo
 	$(PRETTIER) --write .
 
 format-check: ## Fail if anything is unformatted, without changing files
 	$(PRETTIER) --check .
+
+sync-domain-suffix: ## Copy shared/domain-suffix.js into every extension that uses it
+	node scripts/sync-domain-suffix.mjs
+
+check-domain-suffix: ## Fail if any extension's domain-suffix copy has drifted
+	node scripts/sync-domain-suffix.mjs --check
+
+check: format-check check-domain-suffix ## Run every check

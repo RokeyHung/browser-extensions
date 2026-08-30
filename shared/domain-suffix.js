@@ -1,6 +1,15 @@
-// Domain helpers shared by the popup and the service worker.
-// Loaded as a classic script (a <script> tag in popup.html, importScripts() in
-// background.js), so everything here lives on the global scope.
+// domain-suffix.js — canonical registrable-domain (eTLD+1) derivation.
+//
+// This is the SOURCE OF TRUTH. Browser extensions can only load files from
+// inside their own folder, so this block is copied into each extension by
+// `make sync-domain-suffix`. Edit here, never in the copies.
+//
+// Everything between the two markers below is what gets copied; the script
+// re-indents it to match each destination. Run `make check-domain-suffix` to
+// fail the build when a copy has drifted.
+//
+// Consumers: clean-site-data, form-fill-profiles, popup-redirect-guard,
+// site-path-discovery, storage-explorer.
 
 // >>> shared:domain-suffix — generated, do not edit (make sync-domain-suffix) >>>
 // Derive the registrable domain (eTLD+1) from a hostname. Getting this wrong is
@@ -84,22 +93,3 @@ function getSiteLabel(hostname) {
   return label;
 }
 // <<< shared:domain-suffix <<<
-
-// How the wildcard scope reads in the UI, e.g. `*.facebook.*`.
-function getWildcardPattern(hostname) {
-  const label = getSiteLabel(hostname);
-  return label ? `*.${label}.*` : null;
-}
-
-// True when `hostname` belongs to the given site label, on any subdomain and
-// any TLD. e.g. label `facebook` matches m.facebook.com and facebook.com.vn,
-// but not facebookcdn.com.
-function matchesSiteLabel(hostname, siteLabel) {
-  if (!siteLabel) return false;
-  return getSiteLabel(hostname) === siteLabel;
-}
-
-// Cookie domains carry a leading dot when they are shared with subdomains.
-function cookieHost(cookie) {
-  return (cookie?.domain || '').replace(/^\./, '');
-}
