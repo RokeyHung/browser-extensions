@@ -48,6 +48,27 @@ Các dữ liệu cần hỗ trợ:
 
 Sau khi clear xong, nếu user bật option `Go to homepage after cleaning`, extension điều hướng tab về trang chủ của site (origin root, ví dụ `https://animevsub.vn/`) thay vì reload URL hiện tại.
 
+#### Mở rộng phạm vi theo wildcard `*.website.*`
+
+Mặc định phạm vi dọn là registrable domain (eTLD+1) của tab và mọi subdomain của nó. Khi user bật option `Also clean *.<site>.*`, phạm vi mở rộng sang **mọi domain dùng chung site label, ở mọi subdomain và mọi TLD**:
+
+```text
+tab: https://www.facebook.com/abc
+pattern: *.facebook.*
+=> facebook.com, m.facebook.com, facebook.com.vn, login.facebook.net, ...
+```
+
+Quy tắc áp dụng đồng nhất cho mọi website, **không dựa trên bất kỳ danh sách domain cấu hình sẵn nào**. Site label được suy ra từ hostname bằng cách tách eTLD+1 rồi lấy nhãn đầu tiên. Domain khác label không bị đụng tới, ví dụ `facebookcdn.com` không khớp `*.facebook.*`.
+
+Việc tách eTLD+1 cần biết đâu là public suffix, và được xử lý theo hai tầng trong `domain-utils.js`:
+
+- **Luật suy diễn** (`isCountrySecondLevel`) — nhãn kế cuối thuộc nhóm registry (`co`, `com`, `net`, `org`, `edu`, `gov`, `ac`, `or`, `ne`, `go`, `mil`, `gob`, `nom`) đứng dưới ccTLD 2 ký tự thì là public suffix. Phủ `com.vn`, `co.uk`, `co.id`, `com.my`, `ac.jp`… kể cả quốc gia chưa từng được liệt kê. `web` không nằm trong nhóm vì `web.de` là site thật.
+- **`NAMED_SUFFIXES`** — chỉ những gì luật không suy ra được: nhóm hosting coi mỗi subdomain là một site riêng (`github.io`, `vercel.app`, `pages.dev`, `workers.dev`…) và `me.uk`. Nếu thiếu nhóm này, dọn `alice.github.io` sẽ lan sang mọi project site khác.
+
+Tách sai ở đây là lỗi nghiêm trọng chứ không phải cosmetic: `chrome.cookies.getAll({ domain })` khớp cả subdomain, nên registrable domain ra nhầm `co.id` đồng nghĩa xoá cookie của mọi site `.co.id`.
+
+Giới hạn: Chrome không cung cấp API liệt kê mọi origin đang giữ storage, nên tập host của phạm vi wildcard được dựng từ hai nguồn mà site thực sự xuất hiện — cookie jar và các tab đang mở. Với IP address hoặc host một nhãn (`localhost`) thì không có site label nên option bị disable.
+
 ### 2.2. Ngoài scope
 
 Không xử lý trong version đầu:

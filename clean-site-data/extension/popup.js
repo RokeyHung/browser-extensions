@@ -16,10 +16,13 @@ const DEFAULT_SETTINGS = {
   indexedDB: true,
   cacheStorage: true,
   serviceWorker: true,
+  wildcardDomains: false,
   reload: true,
 };
 
 let currentTab = null;
+// null when the current host has no site label to widen to (IP, localhost).
+let wildcardPattern = null;
 
 async function init() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -31,13 +34,36 @@ async function init() {
     return;
   }
 
-  const origin = new URL(tab.url).origin;
+  const { origin, hostname } = new URL(tab.url);
   document.getElementById('siteUrl').textContent = origin;
+
+  wildcardPattern = getWildcardPattern(hostname);
+  renderWildcardRow();
 
   await restoreSettings();
   wireCheckboxSave();
 
   document.getElementById('btnClean').addEventListener('click', onCleanClick);
+}
+
+// Show the pattern the wildcard option actually expands to for this site, e.g.
+// `*.facebook.*`. Hosts without a site label cannot be widened, so the row is
+// disabled instead of promising something it will not do.
+function renderWildcardRow() {
+  const row = document.getElementById('wildcardRow');
+  const checkbox = document.getElementById('opt-wildcard');
+  const hint = document.getElementById('wildcardHint');
+
+  if (!wildcardPattern) {
+    checkbox.checked = false;
+    checkbox.disabled = true;
+    row.classList.add('disabled');
+    document.getElementById('wildcardPattern').textContent = 'related domains';
+    hint.textContent = 'Not available for IP addresses or single-label hosts.';
+    return;
+  }
+
+  document.getElementById('wildcardPattern').textContent = wildcardPattern;
 }
 
 function isValidUrl(url) {
@@ -58,10 +84,15 @@ async function restoreSettings() {
     if (el) el.checked = !!settings[key];
   }
   document.getElementById('opt-reload').checked = !!settings.reload;
+
+  // Only honour a saved wildcard preference when this site can actually be
+  // widened; renderWildcardRow() already disabled the row otherwise.
+  const wildcard = document.getElementById('opt-wildcard');
+  if (!wildcard.disabled) wildcard.checked = !!settings.wildcardDomains;
 }
 
 function wireCheckboxSave() {
-  const checkboxes = document.querySelectorAll('[data-key], #opt-reload');
+  const checkboxes = document.querySelectorAll('[data-key], #opt-reload, #opt-wildcard');
   checkboxes.forEach((cb) => {
     cb.addEventListener('change', saveSettings);
   });
@@ -74,6 +105,7 @@ async function saveSettings() {
     settings[key] = el ? el.checked : true;
   }
   settings.reload = document.getElementById('opt-reload').checked;
+  settings.wildcardDomains = document.getElementById('opt-wildcard').checked;
   await chrome.storage.local.set({ settings });
 }
 
@@ -84,6 +116,7 @@ async function onCleanClick() {
     options[key] = el ? el.checked : false;
   }
   options.reload = document.getElementById('opt-reload').checked;
+  options.wildcardDomains = document.getElementById('opt-wildcard').checked;
 
   const nothingSelected = OPTION_KEYS.every((k) => !options[k]);
   if (nothingSelected) return;
@@ -151,6 +184,8 @@ function showResults(response, options) {
     body.appendChild(row);
   }
 
+  renderScope(response?.scope);
+
   footer.textContent = '';
   if (options.reload && response?.reloaded) {
     const target = prettyUrl(response.navigatedTo);
@@ -162,6 +197,20 @@ function showResults(response, options) {
   }
 
   document.getElementById('results').classList.add('visible');
+}
+
+// Report what the run actually touched. The wildcard scope is only as wide as
+// the hosts Chrome could tell us about (cookie jar + open tabs), so listing them
+// is the honest answer to "did it clean my other TLD too?".
+function renderScope(scope) {
+  const el = document.getElementById('resultsScope');
+  el.textContent = '';
+  if (!scope?.wildcard) return;
+
+  const hosts = scope.hosts || [];
+  const shown = hosts.slice(0, 4).join(', ');
+  const rest = hosts.length > 4 ? ` +${hosts.length - 4} more` : '';
+  el.textContent = `Scope ${scope.pattern}: ${shown}${rest}`;
 }
 
 // "https://animevsub.vn/" -> "animevsub.vn"
@@ -177,6 +226,7 @@ function prettyUrl(url) {
 function showError(msg) {
   const body = document.getElementById('resultsBody');
   body.innerHTML = `<div class="result-row"><span class="result-icon error">✕</span><span class="result-name">${msg}</span></div>`;
+  document.getElementById('resultsScope').textContent = '';
   document.getElementById('resultsFooter').textContent = '';
   document.getElementById('results').classList.add('visible');
 }

@@ -4,6 +4,28 @@ Tất cả thay đổi đáng chú ý của extension **Clean Site Data** đư�
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-08-30
+
+### Added
+
+- **Option clean theo wildcard `*.website.*`** — checkbox mới trong popup cho phép mở rộng phạm vi dọn sang mọi subdomain và mọi TLD dùng chung site label, thay vì chỉ registrable domain hiện tại. Ví dụ đang ở `www.facebook.com` mà bật option: `m.facebook.com`, `facebook.com.vn`, `login.facebook.net` đều được dọn. Nhãn trên checkbox hiển thị đúng pattern của site đang mở (`*.facebook.*`).
+- Pattern được suy ra hoàn toàn từ hostname của tab, **không dùng danh sách domain cứng nào** — mọi site đều áp dụng chung một luật. Phần public suffix trong `domain-utils.js` chỉ để tách eTLD+1 cho đúng, không phải list site.
+- Ở chế độ wildcard, cookie được lấy toàn bộ jar rồi lọc theo site label (`chrome.cookies.getAll({ domain })` không diễn tả được "mọi TLD"), và các tab đang mở thuộc cùng site label cũng được inject script để dọn `sessionStorage` — thứ mà `browsingData` không chạm tới được.
+- Khối Result hiển thị phạm vi thực tế đã dọn (`Scope *.facebook.*: facebook.com, m.facebook.com…`) để thấy rõ những host nào đã bị đụng tới.
+- Trạng thái của option được lưu qua `chrome.storage` như các checkbox khác.
+
+### Fixed
+
+- **Dọn lan sang site khác ở các ccSLD không có trong danh sách** — `EFFECTIVE_TLDS` là list chép tay nên thiếu nhiều country second-level phổ biến (`co.id`, `com.my`, `co.th`, `edu.vn`…). Hệ quả: `shop.tokopedia.co.id` bị tách nhầm thành registrable domain `co.id`, mà `chrome.cookies.getAll({ domain })` khớp cả subdomain → xoá cookie của **mọi site .co.id**; ở chế độ wildcard thì pattern thành `*.co.*`, lan rộng hơn nữa. Lỗi này có từ 1.1.0 chứ không phải do option wildcard sinh ra.
+- Thay list bằng luật suy diễn `isCountrySecondLevel()`: nhãn kế cuối thuộc nhóm registry (`co`, `com`, `net`, `org`, `edu`, `gov`, `ac`, `or`, `ne`, `go`, `mil`, `gob`, `nom`) đứng dưới ccTLD 2 ký tự thì là public suffix. Phủ được cả quốc gia chưa từng liệt kê. 23 suffix cũ trong list đã gỡ bỏ vì luật bao hết.
+- `web` cố tình không nằm trong nhóm registry: `web.de` là site thật, không phải suffix.
+- `NAMED_SUFFIXES` giữ lại đúng phần luật không suy ra được: nhóm hosting tách mỗi subdomain thành site riêng (`github.io`, `vercel.app`, `pages.dev`, `workers.dev`…) và `me.uk`.
+
+### Notes
+
+- Chrome không có API liệt kê mọi origin đang giữ storage, nên phạm vi wildcard chỉ trải được tới các host mà extension biết: cookie trong jar và tab đang mở. Một TLD khác chưa từng đặt cookie và không mở tab thì không có gì để dọn.
+- Với IP address hoặc host một nhãn (`localhost`), option bị disable vì không có site label để mở rộng.
+
 ## [1.2.0] - 2026-07-26
 
 ### Changed

@@ -164,6 +164,41 @@
         font-size: 12px;
       }
 
+      .reload-row.disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .reload-row.disabled:hover {
+        background: transparent;
+      }
+
+      /* ─── Wildcard scope ─── */
+      .pattern {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 11px;
+        color: #b45309;
+        background: #fef3c7;
+        padding: 1px 5px;
+        border-radius: 4px;
+      }
+
+      .scope-hint {
+        font-size: 10px;
+        color: #9ca3af;
+        line-height: 1.45;
+        padding: 0 8px;
+        margin: -6px 0 10px;
+      }
+
+      .results-scope {
+        margin-top: 8px;
+        font-size: 11px;
+        color: #b45309;
+        padding: 0 2px;
+        word-break: break-all;
+      }
+
       /* ─── Clean button ─── */
       .btn-clean {
         width: 100%;
@@ -404,6 +439,12 @@
 
       <div class="divider"></div>
 
+      <label class="reload-row" id="wildcardRow">
+        <input type="checkbox" id="opt-wildcard" />
+        <span class="reload-name">Also clean <span class="pattern" id="wildcardPattern">*.site.*</span></span>
+      </label>
+      <div class="scope-hint" id="wildcardHint">Every subdomain and every TLD of this site, not just the current domain.</div>
+
       <label class="reload-row">
         <input type="checkbox" id="opt-reload" checked />
         <span class="reload-name">Go to homepage after cleaning</span>
@@ -419,6 +460,7 @@
       <div class="results" id="results">
         <div class="results-title">Result</div>
         <div id="resultsBody"></div>
+        <div class="results-scope" id="resultsScope"></div>
         <div class="results-footer" id="resultsFooter"></div>
       </div>
     </div>
@@ -430,6 +472,7 @@
       <div class="unsupported-desc">Please open a normal <strong>http://</strong> or <strong>https://</strong> website to use this extension.</div>
     </div>
 
+    <script src="domain-utils.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>
