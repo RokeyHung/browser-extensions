@@ -1,84 +1,97 @@
 {
   "version": "1",
-  "exportedAt": "2026-07-25T11:35:17.382Z",
+  "exportedAt": "2026-08-30T16:03:33.812Z",
   "rules": [
     {
       "action": "hide",
-      "createdAt": "2026-07-25T11:31:52.657Z",
+      "createdAt": "2026-08-29T04:47:53.146Z",
       "createdFromUrl": null,
       "domainPattern": "*.animevietsub.*",
       "enabled": true,
       "hideMode": "display-none",
-      "id": "rule_1784979112658_6494",
+      "id": "rule_1787978873146_21411",
       "matchedCountAtCreation": null,
       "pathPattern": null,
       "selector": "div.pc_catfix_adv",
-      "updatedAt": "2026-07-25T11:33:38.972Z"
+      "updatedAt": "2026-08-29T04:47:53.146Z"
     },
     {
       "action": "hide",
-      "createdAt": "2026-07-25T11:31:52.657Z",
+      "createdAt": "2026-08-29T04:47:53.146Z",
       "createdFromUrl": null,
       "domainPattern": "*.animevietsub.*",
       "enabled": true,
       "hideMode": "display-none",
-      "id": "rule_1784979112658_15433",
+      "id": "rule_1787978873146_17389",
       "matchedCountAtCreation": null,
       "pathPattern": null,
       "selector": "div.header-ads-pc",
-      "updatedAt": "2026-07-25T11:33:41.659Z"
+      "updatedAt": "2026-08-29T04:47:53.146Z"
     },
     {
       "action": "hide",
-      "createdAt": "2026-07-25T11:31:52.657Z",
+      "createdAt": "2026-08-29T04:47:53.146Z",
       "createdFromUrl": null,
       "domainPattern": "*.animevietsub.*",
       "enabled": true,
       "hideMode": "display-none",
-      "id": "rule_1784979112658_76646",
+      "id": "rule_1787978873146_92947",
       "matchedCountAtCreation": null,
       "pathPattern": null,
       "selector": "div.Adv.ad-center-header",
-      "updatedAt": "2026-07-25T11:33:43.931Z"
+      "updatedAt": "2026-08-29T04:47:53.146Z"
     },
     {
       "action": "hide",
-      "createdAt": "2026-07-25T11:31:52.657Z",
+      "createdAt": "2026-08-29T04:47:53.146Z",
       "createdFromUrl": null,
       "domainPattern": "*.animevietsub.*",
       "enabled": true,
       "hideMode": "display-none",
-      "id": "rule_1784979112658_75233",
+      "id": "rule_1787978873146_44525",
       "matchedCountAtCreation": null,
       "pathPattern": null,
       "selector": "#_preload-ads-1",
-      "updatedAt": "2026-07-25T11:33:46.539Z"
+      "updatedAt": "2026-08-29T04:47:53.146Z"
     },
     {
       "action": "hide",
-      "createdAt": "2026-07-25T11:31:52.657Z",
+      "createdAt": "2026-08-29T04:47:53.146Z",
       "createdFromUrl": null,
       "domainPattern": "*.animevietsub.*",
       "enabled": true,
       "hideMode": "display-none",
-      "id": "rule_1784979112658_1082",
+      "id": "rule_1787978873146_73936",
       "matchedCountAtCreation": null,
       "pathPattern": null,
       "selector": "div.below-player",
-      "updatedAt": "2026-07-25T11:33:49.154Z"
+      "updatedAt": "2026-08-29T04:47:53.146Z"
     },
     {
       "action": "hide",
-      "createdAt": "2026-07-25T11:31:52.657Z",
+      "createdAt": "2026-08-29T04:47:53.146Z",
       "createdFromUrl": null,
       "domainPattern": "*.animevietsub.*",
       "enabled": true,
       "hideMode": "display-none",
-      "id": "rule_1784979112658_7057",
+      "id": "rule_1787978873146_55871",
       "matchedCountAtCreation": null,
       "pathPattern": null,
       "selector": "div.Ads.ads_player",
-      "updatedAt": "2026-07-25T11:33:51.706Z"
+      "updatedAt": "2026-08-29T04:47:53.146Z"
+    },
+    {
+      "action": "hide",
+      "createdAt": "2026-08-30T16:02:37.063Z",
+      "createdFromUrl": null,
+      "domainPattern": "*.animevietsub.*",
+      "enabled": true,
+      "hideMode": "display-none",
+      "id": "rule_1788105757064_2044",
+      "matchedCountAtCreation": 1,
+      "pathPattern": null,
+      "selector": "div#Tp-Wp > div.Body.Container > div.Content > div.TpRwCont > aside.widget-area > div.notif-300 > div > center > a:nth-of-type(1) > img",
+      "updatedAt": "2026-08-30T16:02:37.063Z"
     }
   ]
 }
