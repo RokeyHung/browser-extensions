@@ -20,7 +20,7 @@ const SOURCE = 'shared/domain-suffix.js';
 const START = 'shared:domain-suffix — generated';
 const END = '<<< shared:domain-suffix <<<';
 
-const TARGETS = ['clean-site-data/extension/domain-utils.js'];
+const TARGETS = ['clean-site-data/extension/domain-utils.js', 'form-fill-profiles/extension/modules/form-matcher.js'];
 
 // The marker lines are part of the block, so a copy carries its own proof of
 // where it came from.

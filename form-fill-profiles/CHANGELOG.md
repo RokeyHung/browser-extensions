@@ -4,6 +4,19 @@ Tất cả thay đổi đáng chú ý của extension **Form Fill Profiles** đ�
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-08-30
+
+### Fixed
+
+- **Autofill sang site của người khác** — `*.website.*` trước đây khớp bằng `parts.indexOf(middle)`, tức nhãn nằm ở **bất kỳ vị trí nào** trong hostname cũng tính là khớp. Ai sở hữu `evil.com` chỉ cần dựng `www.facebook.evil.com` là profile đã lưu cho `*.facebook.*` được điền vào form của họ — gồm cả thông tin cá nhân và mật khẩu. Nay pattern neo vào registrable domain: nhãn phải **là** site đó (`getSiteLabel(hostname) === label`), không phải chỉ xuất hiện đâu đó trong host.
+- Tương tự với pattern `website.*`: `facebook.*` từng khớp `facebook.evil.com` vì chỉ kiểm tra `parts[0]`. Nay yêu cầu host đúng bằng registrable domain của chính nó.
+- **Pattern đề xuất mặc định quá rộng** — `SECOND_LEVEL_TLDS` là list chép tay, thiếu `co.id`, `com.my`, `co.th`, `edu.vn`… nên `shop.tokopedia.co.id` bị đề xuất `*.co.*`, mà pattern đó khớp mọi site `.co.uk` / `.co.id` / `.co.th` / `.co.jp`. Đây là giá trị **mặc định** hiện trong ô Domain pattern khi capture form, chỉ cần bấm Save là profile bị áp cho hàng loạt site lạ. Nay dùng luật suy diễn dùng chung nên ra `*.tokopedia.*`.
+- Host là IP, một nhãn, hoặc chỉ là public suffix thì đề xuất chính hostname thay vì pattern wildcard.
+
+### Changed
+
+- Phần tách eTLD+1 chuyển sang dùng block dùng chung từ `shared/domain-suffix.js`, đồng bộ bằng `make sync-domain-suffix`.
+
 ## [1.0.0] - 2026-07-26
 
 Bản MVP đầu tiên, theo scope mục 19 của [docs/spec.md](docs/spec.md).

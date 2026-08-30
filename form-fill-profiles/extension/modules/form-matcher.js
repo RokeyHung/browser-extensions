@@ -1,46 +1,102 @@
 // form-matcher.js — domain/path pattern matching and form ranking.
 // Loaded in the content script, extension pages and the service worker.
-// Domain semantics are the same as block-elements-webpage/rule-matcher.js. Spec §7.
+// Wildcard patterns are anchored to the registrable domain — see the
+// shared:domain-suffix block below and shared/domain-suffix.js. Spec §7.
 
 if (typeof FormMatcher === 'undefined') {
   var FormMatcher = (() => {
-    // Second-level public suffixes needed to guess the main label of a hostname.
-    const SECOND_LEVEL_TLDS = new Set([
-      'co.uk',
-      'org.uk',
-      'ac.uk',
-      'gov.uk',
-      'co.jp',
-      'ne.jp',
-      'or.jp',
-      'com.au',
-      'net.au',
-      'org.au',
-      'co.nz',
-      'com.br',
-      'com.cn',
-      'com.mx',
-      'co.in',
-      'co.kr',
-      'com.tr',
-      'com.sg',
-      'com.hk',
-      'com.tw',
-      'co.za',
-      'com.vn',
-      'com.ua',
+    // >>> shared:domain-suffix — generated, do not edit (make sync-domain-suffix) >>>
+    // Derive the registrable domain (eTLD+1) from a hostname. Getting this wrong is
+    // not cosmetic: a base domain of `co.id` makes every unrelated .co.id site look
+    // like the same site, which silently widens cookie queries, autofill scope and
+    // same-site checks to strangers.
+
+    // Second-level labels a country registry uses to group registrations rather
+    // than to name a site: the `com` in `com.vn`, the `co` in `co.uk`. Paired with
+    // the two-letter country TLD test below this covers every country following the
+    // convention, including the ones nobody here thought to write down.
+    // `web` is deliberately absent: `web.de` is a real site, not a suffix.
+    const REGISTRY_LABELS = new Set(['co', 'com', 'net', 'org', 'edu', 'gov', 'ac', 'or', 'ne', 'go', 'mil', 'gob', 'nom']);
+
+    // Public suffixes spanning 2+ labels that the rule cannot derive, so they have
+    // to be named. Mostly hosting providers that isolate each subdomain as its own
+    // site — without these, treating `alice.github.io` as a site would sweep in
+    // every neighbouring project.
+    const NAMED_SUFFIXES = new Set([
+      'me.uk',
+      'github.io',
+      'gitlab.io',
+      'pages.dev',
+      'vercel.app',
+      'netlify.app',
+      'web.app',
+      'firebaseapp.com',
+      'herokuapp.com',
+      'workers.dev',
     ]);
+
+    // True for a country second-level suffix such as `com.vn`, `co.id` or `ac.jp`:
+    // a registry label under a two-letter country TLD.
+    function isCountrySecondLevel(suffix) {
+      const parts = suffix.split('.');
+      if (parts.length !== 2) return false;
+      const [label, tld] = parts;
+      return /^[a-z]{2}$/i.test(tld) && REGISTRY_LABELS.has(label.toLowerCase());
+    }
+
+    // True when `suffix` is something anyone can register under, so it can never be
+    // a site on its own.
+    function isPublicSuffix(suffix) {
+      return NAMED_SUFFIXES.has(suffix.toLowerCase()) || isCountrySecondLevel(suffix);
+    }
+
+    // True for hosts with no meaningful site label: IP addresses and single-label
+    // hosts such as `localhost` or an intranet name.
+    function isLiteralHost(hostname) {
+      if (!hostname) return true;
+      return hostname.includes(':') || /^[\d.]+$/.test(hostname);
+    }
+
+    // e.g. www.facebook.com -> facebook.com, foo.example.co.uk -> example.co.uk
+    function getBaseDomain(hostname) {
+      if (!hostname) return hostname;
+      if (isLiteralHost(hostname)) return hostname;
+
+      const parts = hostname.split('.');
+      if (parts.length <= 2) return hostname;
+
+      const last2 = parts.slice(-2).join('.');
+      const last3 = parts.slice(-3).join('.');
+      if (parts.length >= 4 && isPublicSuffix(last3)) return parts.slice(-4).join('.');
+      if (isPublicSuffix(last2)) return last3;
+      return last2;
+    }
+
+    // The site's own label inside its registrable domain — the part that stays the
+    // same across subdomains and country TLDs.
+    // e.g. www.facebook.com -> facebook, foo.example.co.uk -> example
+    // Returns null when the host has no such label (IPs, localhost).
+    function getSiteLabel(hostname) {
+      if (isLiteralHost(hostname)) return null;
+      const base = getBaseDomain(hostname);
+      const label = base ? base.split('.')[0] : '';
+      if (!label) return null;
+      // A bare single-label host is its own base domain; treat it as literal so we
+      // never widen the scope to "everything named localhost".
+      if (base === hostname && !hostname.includes('.')) return null;
+      return label;
+    }
+    // <<< shared:domain-suffix <<<
 
     function matchDomainPattern(pattern, hostname) {
       if (!pattern || !hostname) return false;
 
-      // *.website.* — subdomain + TLD wildcard: root domain or any subdomain, any TLD
+      // *.website.* — subdomain + TLD wildcard: root domain or any subdomain, any TLD.
+      // Anchored to the registrable domain: the label has to BE the site, not
+      // merely appear somewhere in the host. Otherwise anyone owning evil.com
+      // could serve www.website.evil.com and collect the saved profile.
       if (pattern.startsWith('*.') && pattern.endsWith('.*')) {
-        const middle = pattern.slice(2, -2);
-        const parts = hostname.split('.');
-        const idx = parts.indexOf(middle);
-        // middle label present and followed by at least a TLD label (idx >= 0 allows the root domain too)
-        return idx >= 0 && idx < parts.length - 1;
+        return getSiteLabel(hostname) === pattern.slice(2, -2);
       }
 
       // *.website.com — subdomain wildcard only (does not match the bare root domain)
@@ -49,11 +105,10 @@ if (typeof FormMatcher === 'undefined') {
         return hostname.endsWith('.' + base);
       }
 
-      // website.* — TLD wildcard only (root domain on any TLD)
+      // website.* — TLD wildcard only (root domain on any TLD, no subdomains)
       if (pattern.endsWith('.*')) {
         const base = pattern.slice(0, -2);
-        const parts = hostname.split('.');
-        return parts[0] === base && parts.length >= 2;
+        return getSiteLabel(hostname) === base && getBaseDomain(hostname) === hostname;
       }
 
       // exact / bare domain — also matches www. and any subdomain
@@ -112,15 +167,11 @@ if (typeof FormMatcher === 'undefined') {
     // Default pattern proposed when a form is captured: *.mainlabel.*
     function suggestDomainPattern(hostname) {
       if (!hostname) return '';
-      // IP address or single-label host — no wildcard makes sense
-      if (/^[\d.]+$/.test(hostname) || hostname.includes(':') || !hostname.includes('.')) return hostname;
-
-      const parts = hostname.split('.');
-      const lastTwo = parts.slice(-2).join('.');
-      const tldLabels = SECOND_LEVEL_TLDS.has(lastTwo) ? 2 : 1;
-      const main = parts[parts.length - tldLabels - 1];
-      if (!main) return hostname;
-      return `*.${main}.*`;
+      // IP address, single-label host, or a bare public suffix — no wildcard
+      // makes sense, so propose the host itself rather than a pattern that
+      // would autofill this profile across unrelated sites.
+      const label = getSiteLabel(hostname);
+      return label ? `*.${label}.*` : hostname;
     }
 
     function validateDomainPattern(pattern) {
