@@ -340,7 +340,7 @@ sh = Math.round(Math.min(captureRect.height, outHeight - actualTop) * scale);
 
 Tile cuối chồng lên tile áp chót một đoạn, và phần chồng **ghi đè lên đúng những pixel giống hệt** — cùng nội dung, cùng toạ độ. Không cần cắt `sourceTop` gì cả; đây là lý do §7.3 không có tham số overlap.
 
-Trang có `fullHeight < captureRect.height` (ngắn hơn một màn) → chỉ 1 tile, và ảnh cao `fullHeight * scale` chứ không phải chiều cao viewport: phần dưới cùng của viewport khi đó là nền trắng, `sh` clamp đã cắt bỏ.
+Trang ngắn hơn một màn → chỉ 1 tile, và ảnh cao **đúng một màn**, không phải chiều cao nội dung. Không phải vì lười: `document.scrollingElement.scrollHeight` của một trang ngắn **luôn trả về chiều cao viewport**, nên chiều cao nội dung thật không lấy được từ đó. Cắt theo hộp của `<body>` thì lấy được, nhưng sẽ cắt mất mọi thứ nằm ngoài hộp đó — phần tử `position: absolute`, footer dán đáy màn hình — đổi một khoảng trắng thừa lấy nguy cơ mất nội dung. Đây cũng là hành vi của mọi công cụ chụp màn hình khác.
 
 ### 7.6. Cắt scrollbar
 
