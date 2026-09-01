@@ -4,6 +4,24 @@ Tất cả thay đổi đáng chú ý của extension **Clean Site Data** đư�
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-09-01
+
+### Added
+
+- **WebSQL và File System được dọn thật** — spec §5.2 bước 3 và bảng §2.1 liệt kê cả hai từ đầu, nhưng `dataToRemove` chưa bao giờ truyền chúng vào `chrome.browsingData.remove`. Nay có, mỗi khi ít nhất một loại origin storage được chọn; lượt chỉ tick Cookies vẫn chỉ đụng cookie. Đã đo từng key một trên Chrome 152 kèm bộ lọc `origins` trước khi thêm: cả `fileSystems` lẫn `webSQL` đều được chấp nhận, nên không có nguy cơ một key lạ làm cả lời gọi bị từ chối rồi kéo theo các loại còn lại.
+
+### Fixed
+
+- **Bỏ tick `Session Storage` nhưng nó vẫn bị xoá** — `chrome.browsingData.remove({ origins }, { localStorage: true })` dọn sạch cả DOM storage partition của origin, `sessionStorage` mất theo. Thủ phạm không nằm trong code extension: gọi thẳng API đó từ service worker, không qua một dòng nào của `clearPageData()`, vẫn ra `{ ls: null, ss: null }` từ trạng thái `{ ls: "ls-value", ss: "ss-value" }`. Chạy ma trận 6×6 — tick đúng một ô rồi đếm xem còn lại những gì — cả bảng chỉ có duy nhất ô này lem.
+- Không sửa bằng cách bỏ `localStorage` khỏi bước `browsingData`: đó chính là bước với tới được storage mà script trong trang không chạm được, gỡ đi thì Local Storage dọn không sạch, đổi một lỗi lấy một lỗi to hơn. Nay popup **khoá bật** ô `Session Storage` khi `Local Storage` đang tick, kèm dòng `Chrome clears Session Storage together with Local Storage, so it cannot be kept.` — cùng cách xử lý với hàng wildcard: control nào không giữ được lời hứa thì disable và nói rõ, chứ không để nguyên trông như còn tác dụng.
+- Lựa chọn thật của user được giữ riêng khỏi trạng thái khoá, nên bỏ tick `Local Storage` là ô `Session Storage` mở lại đúng như họ đặt trước đó. Nếu đọc thẳng checkbox lúc lưu thì cái khoá sẽ lặng lẽ ghi đè `sessionStorage: true` vào settings và ăn mất lựa chọn.
+
+### Notes
+
+- Kiểm chứng end-to-end trên Chrome for Testing 152 qua CDP: server fixture cục bộ với `--host-resolver-rules` trỏ mọi hostname về nó, nên phạm vi cookie, tách eTLD+1 và cô lập origin đều chạy trên bản cài thật của Chrome chứ không phải mock. Popup được mở dưới dạng **tab nền** để `chrome.tabs.query({ active: true, currentWindow: true })` trả về đúng tab site — nhờ vậy cả đường popup → `sendMessage` → service worker → `executeScript` → render kết quả đều được đi qua thật. 163/163 assertion pass.
+- Hostname trong fixture phải bịa (`zomsite.com`, `zomshop.co.id`). Dùng `facebook.com` hay `tokopedia.co.id` như ví dụ trong spec thì HSTS preload nâng `http://` lên `https://` trước khi resolver rule kịp áp dụng, mọi trang chết ở `ERR_SSL_PROTOCOL_ERROR`. Hình dạng domain mới là thứ cần kiểm: một host `www`, một subdomain anh em, cùng site label ở TLD khác, và một domain nhìn giống nhưng khác label.
+- Chưa phủ: cookie HttpOnly và partitioned (CHIPS).
+
 ## [1.3.0] - 2026-08-30
 
 ### Added

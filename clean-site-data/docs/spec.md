@@ -43,8 +43,10 @@ Các dữ liệu cần hỗ trợ:
 | IndexedDB       | Xoá toàn bộ IndexedDB databases thuộc origin hiện tại |
 | Cache Storage   | Xoá toàn bộ caches tạo bởi Cache Storage API          |
 | Service Worker  | Unregister service workers thuộc origin hiện tại      |
-| WebSQL          | Xoá nếu browser/API hỗ trợ                            |
-| File System     | Xoá nếu browser/API hỗ trợ                            |
+| WebSQL          | Đi kèm mọi lượt dọn origin storage, không có ô riêng  |
+| File System     | Đi kèm mọi lượt dọn origin storage, không có ô riêng  |
+
+WebSQL và File System không có checkbox riêng trong popup: chúng là origin storage đời cũ, user không có cách nào biết mình có chúng hay không. Chúng được đưa vào `chrome.browsingData.remove` mỗi khi có ít nhất một loại origin storage được chọn (Local Storage, IndexedDB, Cache Storage hoặc Service Worker). Lượt dọn chỉ tick mỗi Cookies thì vẫn chỉ đụng cookie.
 
 Sau khi clear xong, nếu user bật option `Go to homepage after cleaning`, extension điều hướng tab về trang chủ của site (origin root, ví dụ `https://animevsub.vn/`) thay vì reload URL hiện tại.
 
@@ -115,7 +117,8 @@ https://example.com
 
 [✓] Cookies
 [✓] Local Storage
-[✓] Session Storage
+[✓] Session Storage        (khoá, mờ đi khi Local Storage đang tick)
+    Chrome clears this together with Local Storage, so it cannot be kept.
 [✓] IndexedDB
 [✓] Cache Storage
 [✓] Service Worker
@@ -124,6 +127,8 @@ https://example.com
 
 [Clean Site Data]
 ```
+
+Ô `Session Storage` bị khoá bật khi `Local Storage` đang tick — xem §8.3. Cùng cách xử lý với hàng wildcard: một control không thể giữ lời hứa thì bị disable kèm dòng giải thích, chứ không để nguyên trông như còn tác dụng. Bỏ tick `Local Storage` thì ô mở lại đúng lựa chọn cũ của user.
 
 ### 4.2. Trạng thái sau khi clean
 
@@ -205,14 +210,20 @@ Extension thực hiện lần lượt:
    - `Cache Storage`
    - `Service Worker`
 
-3. Dùng `chrome.browsingData` để xoá thêm dữ liệu theo origin nếu API hỗ trợ:
+3. Dùng `chrome.browsingData` để xoá thêm dữ liệu theo origin, chỉ những loại user đã chọn:
 
+   - `cookies`
    - `indexedDB`
    - `localStorage`
    - `cacheStorage`
    - `serviceWorkers`
+
+   Kèm theo, khi có ít nhất một loại origin storage được chọn:
+
    - `fileSystems`
    - `webSQL`
+
+   Cả bảy key đều được Chrome 152 chấp nhận cùng bộ lọc `origins` — đã đo từng key một, không key nào bị từ chối.
 
 4. Tổng hợp kết quả.
 5. Nếu user bật option, điều hướng active tab về origin root; nếu tab đã ở trang chủ thì reload.
@@ -357,6 +368,19 @@ Acceptance criteria:
 - Session storage của tab hiện tại bị xoá.
 - Không ảnh hưởng tab/domain khác ngoài scope.
 
+#### Session Storage đi liền với Local Storage
+
+`chrome.browsingData.remove({ origins }, { localStorage: true })` dọn sạch cả DOM storage partition của origin, tức `sessionStorage` mất theo. Đo trên Chrome 152 bằng cách gọi thẳng API, không qua một dòng code nào của extension:
+
+```text
+seeded           { ls: "ls-value", ss: "ss-value" }
+after bD(local)  { ls: null,       ss: null       }
+```
+
+Bước inject script không gây ra chuyện này — `clearPageData()` chỉ đụng đúng thứ được yêu cầu. Ma trận 6×6 (mỗi lượt tick đúng một ô) chỉ có duy nhất một ô lem, là ô này.
+
+Không đánh đổi bằng cách bỏ `localStorage` khỏi `browsingData`: bước đó chính là thứ với tới được storage mà script trong trang không chạm được, bỏ đi thì Local Storage dọn không sạch. Thay vào đó popup khoá bật ô `Session Storage` khi `Local Storage` đang tick, kèm dòng giải thích. Lựa chọn thật của user được giữ riêng và trả lại nguyên vẹn khi bỏ tick `Local Storage`, nên khoá không ăn mất setting.
+
 ### 8.4. IndexedDB
 
 Clear bằng:
@@ -495,6 +519,7 @@ Khi user chọn tất cả option và click clean, extension xoá được:
 - IndexedDB
 - Cache Storage
 - Service Worker nếu có
+- WebSQL và File System, đi kèm không cần tick riêng
 
 ### AC-03
 
@@ -525,6 +550,10 @@ Nếu user đang ở `chrome://extensions`, extension không chạy clean và hi
 ### AC-06
 
 Nếu một loại dữ liệu không thể xoá, extension vẫn xoá các loại còn lại và hiển thị warning.
+
+### AC-07
+
+Loại dữ liệu user bỏ tick thì không bị đụng tới. Kiểm bằng ma trận: tick đúng một ô, năm ô còn lại phải còn nguyên sau lượt dọn. Ngoại lệ duy nhất là `Session Storage` khi `Local Storage` được tick — trường hợp đó ô bị khoá bật nên user không thể bỏ tick nó ngay từ đầu (§8.3).
 
 ## 12. MVP
 

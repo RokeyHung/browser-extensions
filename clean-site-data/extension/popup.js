@@ -23,6 +23,11 @@ const DEFAULT_SETTINGS = {
 let currentTab = null;
 // null when the current host has no site label to widen to (IP, localhost).
 let wildcardPattern = null;
+// The user's own Session Storage choice, kept aside while the box is locked on.
+// Clearing localStorage through browsingData empties the whole DOM storage
+// partition, sessionStorage included, so with Local Storage ticked the box
+// cannot be honoured — it is forced on and locked instead of quietly lying.
+let sessionStoragePreference = true;
 
 async function init() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -42,6 +47,7 @@ async function init() {
 
   await restoreSettings();
   wireCheckboxSave();
+  syncSessionStorageLock();
 
   document.getElementById('btnClean').addEventListener('click', onCleanClick);
 }
@@ -66,6 +72,21 @@ function renderWildcardRow() {
   document.getElementById('wildcardPattern').textContent = wildcardPattern;
 }
 
+// Session Storage cannot survive a Local Storage clean, so while Local Storage
+// is ticked the box is forced on and disabled with a line saying why. Same shape
+// as the wildcard row: a control that cannot deliver is disabled and explained
+// rather than left looking effective.
+function syncSessionStorageLock() {
+  const local = document.querySelector('[data-key="localStorage"]');
+  const session = document.querySelector('[data-key="sessionStorage"]');
+  const locked = local.checked;
+
+  session.disabled = locked;
+  session.checked = locked ? true : sessionStoragePreference;
+  session.closest('.option-row').classList.toggle('locked', locked);
+  document.getElementById('sessionLockHint').hidden = !locked;
+}
+
 function isValidUrl(url) {
   if (!url) return false;
   try {
@@ -84,6 +105,7 @@ async function restoreSettings() {
     if (el) el.checked = !!settings[key];
   }
   document.getElementById('opt-reload').checked = !!settings.reload;
+  sessionStoragePreference = !!settings.sessionStorage;
 
   // Only honour a saved wildcard preference when this site can actually be
   // widened; renderWildcardRow() already disabled the row otherwise.
@@ -96,6 +118,13 @@ function wireCheckboxSave() {
   checkboxes.forEach((cb) => {
     cb.addEventListener('change', saveSettings);
   });
+
+  // A disabled checkbox fires no change event, so this only ever sees a real
+  // click and the remembered preference stays the user's own.
+  document.querySelector('[data-key="sessionStorage"]').addEventListener('change', (e) => {
+    sessionStoragePreference = e.target.checked;
+  });
+  document.querySelector('[data-key="localStorage"]').addEventListener('change', syncSessionStorageLock);
 }
 
 async function saveSettings() {
@@ -104,6 +133,12 @@ async function saveSettings() {
     const el = document.querySelector(`[data-key="${key}"]`);
     settings[key] = el ? el.checked : true;
   }
+  // While the box is locked on, the DOM says `true` for a reason that is not the
+  // user's choice — persist what they actually picked, so unticking Local
+  // Storage hands their Session Storage setting back untouched.
+  const session = document.querySelector('[data-key="sessionStorage"]');
+  settings.sessionStorage = session.disabled ? sessionStoragePreference : session.checked;
+
   settings.reload = document.getElementById('opt-reload').checked;
   settings.wildcardDomains = document.getElementById('opt-wildcard').checked;
   await chrome.storage.local.set({ settings });

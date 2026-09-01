@@ -76,10 +76,24 @@ async function handleClean({ tabId, url, origin, options }) {
   //    reach. Runs after the page injection to catch anything left behind.
   const dataToRemove = {};
   if (options.cookies) dataToRemove.cookies = true;
+  // Chrome empties the whole DOM storage partition here: asking for
+  // `localStorage` takes sessionStorage with it, measured on Chrome 152 by
+  // calling browsingData directly with no extension code in the way. The popup
+  // locks the two checkboxes together rather than let this happen behind a
+  // box the user unticked (spec §8.3).
   if (options.localStorage) dataToRemove.localStorage = true;
   if (options.indexedDB) dataToRemove.indexedDB = true;
   if (options.cacheStorage) dataToRemove.cacheStorage = true;
   if (options.serviceWorker) dataToRemove.serviceWorkers = true;
+
+  // Legacy origin storage the spec lists but no checkbox names (§2.1, §5.2
+  // step 3). Both keys are still accepted on Chrome 152 and both honour the
+  // `origins` filter, so they ride along with any origin-storage clean. A
+  // cookies-only run stays a cookies-only run.
+  if (options.localStorage || options.indexedDB || options.cacheStorage || options.serviceWorker) {
+    dataToRemove.fileSystems = true;
+    dataToRemove.webSQL = true;
+  }
 
   if (Object.keys(dataToRemove).length > 0) {
     try {
