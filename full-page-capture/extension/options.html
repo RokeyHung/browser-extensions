@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Full Page Capture — Options</title>
+    <link rel="stylesheet" href="styles/options.css" />
+  </head>
+  <body>
+    <div class="header">
+      <img class="header-logo" src="icons/icon48.png" alt="" />
+      <h1>Full Page Capture</h1>
+    </div>
+
+    <main class="page">
+      <label class="row" for="preloadLazyImages">
+        <span class="row-text">
+          <span class="row-title">Wait for lazy-loaded images</span>
+          <span class="row-hint">Slower, but images below the fold are in the shot.</span>
+        </span>
+        <input type="checkbox" id="preloadLazyImages" class="toggle" />
+      </label>
+
+      <div class="row">
+        <span class="row-text">
+          <span class="row-title">Image format</span>
+          <span class="row-hint">PNG keeps every pixel; JPEG makes much smaller files.</span>
+        </span>
+        <span class="radios">
+          <label><input type="radio" name="format" value="png" /> PNG</label>
+          <label><input type="radio" name="format" value="jpeg" /> JPEG</label>
+        </span>
+      </div>
+
+      <div class="row">
+        <span class="row-text">
+          <span class="row-title">When done</span>
+          <span class="row-hint">Open the screenshot, or write it straight to Downloads.</span>
+        </span>
+        <span class="radios">
+          <label><input type="radio" name="afterCapture" value="preview" /> Open it</label>
+          <label><input type="radio" name="afterCapture" value="download" /> Save to disk</label>
+        </span>
+      </div>
+
+      <div class="footer">
+        <button type="button" id="reset" class="secondary">Reset to defaults</button>
+        <span class="privacy">Screenshots never leave your computer.</span>
+      </div>
+
+      <div id="saved" class="saved" hidden>Saved</div>
+    </main>
+
+    <script src="modules/settings.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>
