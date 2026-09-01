@@ -54,7 +54,7 @@ if (typeof SnapshotStore === 'undefined') {
 
 **Comments cite the spec.** File headers say what the file is and reference sections (`// stitcher.js — assembles tiles ... (spec §7.8, §8)`). Comments explain _why_ — the constraint, the browser quirk, the rejected alternative — not what the next line does. Match that density; it is deliberately high and is the main design record next to the spec.
 
-**Code and code comments are in English. Specs, changelogs and commit messages are in Vietnamese.**
+**Code, code comments and commit messages are in English. Specs and changelogs are in Vietnamese.**
 
 ## shared/domain-suffix.js
 
@@ -68,7 +68,9 @@ A behaviour change is three edits, not one: the code, the matching `docs/spec.md
 
 ## Commits
 
-Conventional subjects, scoped by extension folder: `fix(full-page-capture): ...`, `feat(storage-explorer): ...`, `docs: ...`. Types in use: `feat`, `fix`, `chore`, `docs`, `refactor`. Recent history writes subject and body in Vietnamese, with the body explaining cause → evidence → fix.
+Conventional subjects, scoped by extension folder: `fix(full-page-capture): ...`, `feat(storage-explorer): ...`, `docs: ...`. Types in use: `feat`, `fix`, `chore`, `docs`, `refactor`. Subject and body are in **English**, with the body explaining cause → evidence → fix.
+
+History before `e0c1250` (2026-09-01) is in Vietnamese. Those commits are not being rewritten — match the English convention going forward and read the older ones as-is.
 
 `/commit-push` ([.claude/commands/commit-push.md](.claude/commands/commit-push.md)) commits **only what is already staged** (never `git add`, never `--amend`, never force) and pushes to `main`.
 
