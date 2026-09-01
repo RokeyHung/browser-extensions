@@ -320,6 +320,7 @@ Với mỗi tile `i`:
    - Quét sau `requestAnimationFrame` đầu tiên kể từ lúc cuộn, để scroll handler của trang kịp chạy trước khi mình nhìn.
    - **Quét cả shadow root mở**: `TreeWalker` dừng ở ranh giới shadow, mà web component đúng là chỗ các thanh bar, cookie banner và widget chat ngày nay hay nằm — đo trên fixture thì một bar trong shadow root lặp đủ **5/5** màn. Shadow root **closed** thì chịu, không có đường nào nhìn vào từ bên ngoài.
    - Ẩn bằng **inline style** chứ không phải class: class phụ thuộc `<style>` trong document, mà style của document không lọt vào shadow root — quét thấy rồi vẫn không ẩn được.
+   - **Nền `background-attachment: fixed` được đổi tạm sang `scroll`.** Nền kiểu đó neo vào viewport chứ không neo vào trang, nên để nguyên thì nó vẽ lại đúng một dải giống hệt vào **mọi** màn chụp — cùng loại lỗi với thanh bar, chỉ khác tầng. `html` và `body` phải kiểm riêng vì `TreeWalker` gốc `body` không bao giờ trả về chính `body`, mà đó lại đúng là chỗ nền cố định hay nằm.
    - Với `position: sticky`, thay vì ẩn thì đặt `position: static !important` — sticky thường là nội dung thật (tiêu đề cột trong bảng), ẩn đi sẽ mất chữ.
 3. Chờ: `requestAnimationFrame` ×2, rồi `SETTLE_DELAY` (**120ms**).
 4. Đọc `actualScrollY = scrollTarget.scrollTop`.
@@ -594,7 +595,9 @@ Mọi thứ khác đã bị bỏ khỏi popup qua ba vòng cắt: hàng `Engine`
 - Trang không http(s) → thay toàn bộ thân popup bằng một dòng `This page is not supported.`
 - Đang chụp → popup vào màn hình tiến trình (§6.3) thay cho màn hình trên.
 
-Popup **tự đóng** ngay khi bắt đầu chụp (popup đóng thì tab mới focus lại được để `captureVisibleTab` hoạt động đúng). Tiến trình từ đó hiện ở overlay trong page.
+Popup **tự đóng** ngay khi bắt đầu chụp, và tiến trình từ đó hiện ở overlay trong page.
+
+Lý do **không** phải là "phải đóng popup thì `captureVisibleTab` mới chạy" — câu đó từng nằm ở đây và nó sai. Popup không phải một tab, mở nó không làm đổi tab active của cửa sổ, nên chụp vẫn chạy bình thường khi popup còn mở; GoFullPage chạy nguyên vòng lặp chụp bên trong popup của nó. Lý do thật là quyền sở hữu: lượt chụp thuộc về service worker, nên popup chỉ là cái nút bấm và đóng lại được ngay — user bấm xong đi làm việc khác, lượt chụp vẫn chạy tiếp.
 
 ## 13. Options
 

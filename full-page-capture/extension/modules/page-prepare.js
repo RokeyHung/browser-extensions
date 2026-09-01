@@ -71,10 +71,32 @@
   // chat widgets live — measured on a fixture, a bar in a shadow root repeated on
   // all five screenfuls. A *closed* root stays invisible to us; nothing can be
   // done about that from outside (§7.4).
+  // A background painted with `background-attachment: fixed` is anchored to the
+  // viewport, not to the page: left alone it paints the same band into every
+  // screenful. Switching it to `scroll` for the duration makes it flow with the
+  // content, which is what the stitched image is supposed to show.
+  function unpinBackground(state, node) {
+    if (!node || state.knownBg.has(node)) return;
+    const attachment = getComputedStyle(node).backgroundAttachment;
+    if (!attachment || !attachment.includes('fixed')) return;
+    state.knownBg.add(node);
+    state.fixedBg.push({
+      el: node,
+      previous: node.style.getPropertyValue('background-attachment'),
+      priority: node.style.getPropertyPriority('background-attachment'),
+    });
+    node.style.setProperty('background-attachment', 'scroll', 'important');
+  }
+
   function collectPinned(state) {
     const doc = document;
     const roots = [doc.body || doc.documentElement];
     let seen = 0;
+
+    // A TreeWalker rooted at <body> never returns <body> itself, and html/body
+    // are exactly where a fixed background usually lives.
+    unpinBackground(state, doc.documentElement);
+    unpinBackground(state, doc.body);
 
     while (roots.length && seen < 20000) {
       const walker = doc.createTreeWalker(roots.shift(), NodeFilter.SHOW_ELEMENT);
@@ -82,6 +104,7 @@
         seen++;
         const node = walker.currentNode;
         if (node.shadowRoot) roots.push(node.shadowRoot);
+        unpinBackground(state, node);
         if (state.known.has(node) || node.hasAttribute('data-fpc-overlay')) continue;
         const position = getComputedStyle(node).position;
         if (position !== 'fixed' && position !== 'sticky') continue;
@@ -122,6 +145,8 @@
       overflow: null,
       fixed: [],
       known: new Set(),
+      fixedBg: [],
+      knownBg: new Set(),
     };
     window.__fpcState = state;
     window.__fpcCancel = false;
@@ -213,6 +238,11 @@
       if (!entry.hidden) continue;
       if (entry.previous) entry.el.style.setProperty(entry.property, entry.previous, entry.priority);
       else entry.el.style.removeProperty(entry.property);
+    }
+
+    for (const entry of state.fixedBg) {
+      if (entry.previous) entry.el.style.setProperty('background-attachment', entry.previous, entry.priority);
+      else entry.el.style.removeProperty('background-attachment');
     }
 
     if (state.overflow) {
