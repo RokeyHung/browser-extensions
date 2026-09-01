@@ -4,6 +4,28 @@ Tất cả thay đổi đáng chú ý của extension **Full Page Capture** đư
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-08-31
+
+### Added
+
+- **Bộ công cụ vẽ đầy đủ trên trang kết quả**: `Pen` (vẽ tay), `Line`, `Arrow`, `Rect`, `Ellipse`, `Highlight`, `Fill` (đổ màu vùng liền màu), `Eraser`, `Pick` (hút màu từ ảnh) — cùng `Crop`, `Redact` và `Text` đã có.
+- **Hàng thuộc tính riêng**: 8 ô màu dựng sẵn + ô màu tự chọn, hai hộp size **gõ được** (`Line` cho độ dày nét, `Text` cho cỡ chữ) và ô `Filled shapes` cho Rect/Ellipse. Mỗi hộp là một combobox tự dựng — ô nhập + nút `▾` mở danh sách preset — đúng kiểu ô cỡ chữ của Word: chọn một preset hoặc gõ số bất kỳ như `7`, `23`. Không dùng `<datalist>` vì Chrome không vẽ dấu hiệu xổ xuống nào cho `<input list=…>`, cả `type="number"` lẫn `type="text"`; danh sách preset mà nhìn không ra là có thì coi như không tồn tại. Chevron là SVG 18×18 trong vùng bấm 30×26 trải hết chiều cao ô — ký tự `▾` vẽ nhỏ, mỗi font một kiểu và không chỉnh được vùng bấm. Dòng trong danh sách cao tối thiểu 34px, danh sách rộng tối thiểu 120px. Giá trị kẹp trong `[1,200]` và `[6,400]`; hộp để trống trở về mặc định chứ không kẹp xuống min, vì `Number('')` là `0` và nếu không chặn riêng thì xoá trắng ô sẽ lặng lẽ cho ra nét 1px. Tách thành hàng thứ hai vì nhồi mười hai công cụ lẫn bảng màu vào một hàng thì trên laptop nó tự xuống dòng thành một khối lộn xộn.
+- **Mũi tên có thân dừng trước đỉnh**: `lineCap: 'round'` làm nét lồi thêm nửa độ dày ra ngoài điểm kết thúc, nên thân chạy tới `(x2,y2)` chọc một cục màu xuyên qua tam giác — nhìn hệt như tam giác bị thụt vào trong. Thân dừng ở `length - head*0.9` và dùng `lineCap: 'butt'`, để đỉnh tam giác là điểm xa nhất của hình.
+- **Highlight vẽ bằng `globalCompositeOperation: multiply`**, nên chữ bên dưới vẫn đọc được thay vì bị phủ mất — đúng cách bút dạ quang thật hoạt động.
+- **Eraser trả pixel gốc về chứ không bôi trắng.** Lúc replay, nếu stack có eraser thì dựng thêm một canvas `clean` = ảnh đã áp crop và redact nhưng chưa có nét vẽ nào, rồi stroke bằng `createPattern(clean)`.
+- **Redact nằm trong `clean` là có chủ đích**: tẩy lên vùng đã che **không** làm lộ lại nội dung. Nếu không thì Eraser trở thành đường vòng phá chính lời hứa của Redact. Có test riêng cho tính chất này.
+- Độ dày nét, như cỡ chữ, tính bằng CSS pixel của trang gốc nhân `meta.scale`, nên nét 4px trông như nhau trên ảnh 1× và 2×.
+- Mọi nét vẽ đi chung stack lệnh: `Undo` gỡ từng cái một, `Reset` xoá sạch, blob gốc không bị đụng tới.
+
+### Fixed
+
+- **`padding-right` của ô size bị ghi đè** — nó được viết _trước_ `padding` shorthand trong cùng rule, nên chỗ chừa cho chevron bị shorthand xoá sạch và con số đè lên mũi tên. Shorthand nay đứng trước longhand.
+
+### Notes
+
+- Canvas `clean` chỉ được tạo khi stack thật sự có lệnh eraser — với ảnh dài nó tốn thêm cả trăm MB, không đáng trả khi không ai tẩy.
+- Kiểm chứng bằng chuột và bàn phím thật qua CDP: 42 assertion phủ từng công cụ (lệnh ghi đúng loại, có hình học thật), màu và độ dày tới được lệnh, Fill đổi pixel, Pick đọc màu, Eraser trả đúng pixel gốc, tẩy lên vùng redact không làm lộ lại, và combobox size mở/chọn/đóng đúng bằng chuột thật.
+
 ## [1.1.0] - 2026-08-31
 
 ### Added

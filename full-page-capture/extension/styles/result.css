@@ -233,3 +233,152 @@ a {
   font-weight: 500;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
 }
+
+/* ── Drawing controls ── */
+.styles {
+  border-bottom: 1px solid #e5e7eb;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.swatches {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.swatch.is-active {
+  outline: 2px solid #5546cb;
+  outline-offset: 1px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.checkbox input {
+  accent-color: #5546cb;
+}
+
+.size {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.combo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The chevron is a click target, not a decoration: it takes the full height of
+   the box and enough width to hit without aiming, and it is an SVG because the
+   ▾ character draws small and differently in every font. */
+.combo-arrow {
+  position: absolute;
+  right: 1px;
+  top: 1px;
+  bottom: 1px;
+  width: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-left: 1px solid #f3f4f6;
+  border-radius: 0 7px 7px 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.combo-arrow svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: #4b5563;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.combo-arrow:hover {
+  background: #f3f4f6;
+}
+
+.combo-arrow:hover svg {
+  stroke: #111827;
+}
+
+.combo-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 5;
+  min-width: 120px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 300px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.combo-option {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #111827;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.combo-option:hover {
+  background: #ede9fe;
+}
+
+/* The shorthand has to come first: written after `padding-right` it silently
+   resets it, and the value collides with the chevron. */
+.size-input {
+  width: 76px;
+  padding: 5px 6px;
+  padding-right: 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #111827;
+  background: #fff;
+}
+
+.size-input:focus {
+  outline: 2px solid #c4b5fd;
+  outline-offset: -1px;
+}

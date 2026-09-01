@@ -491,11 +491,15 @@ Mở bằng `result.html?page=<id>`. Một màn hình, không có gallery — ch
 
 ```text
 ┌─ header: ▣ | tiêu đề trang + link URL gốc + 2880 × 17260 ──────────┐
-├─ toolbar: [Crop] [Redact ▾] [Text] [■] [Undo] [Reset] |            │
-│                    Zoom [Fit|100%] | [Copy] [PNG] [JPEG]           │
+├─ toolbar 1: [Crop] [Redact ▾] | [Pen] [Line] [Arrow] [Rect]        │
+│             [Ellipse] [Highlight] [Text] | [Fill] [Eraser] [Pick]  │
+│             ⟶ phải: Zoom [Fit|100%] | [Copy] [PNG] [JPEG]          │
+├─ toolbar 2: ■■■■■■■■ [màu] | Line[4] Text[18] | ☐ Filled ⟶ [Undo] │
 ├─ stage: canvas, cuộn cả 2 chiều ───────────────────────────────────┤
 └─ footer: cảnh báo (nếu có) ────────────────────────────────────────┘
 ```
+
+Hai hàng là có lý do: hàng trên chọn **làm gì**, hàng dưới chọn **vẽ bằng gì**. Nhồi cả mười hai công cụ lẫn bảng màu vào một hàng thì trên laptop nó tự xuống dòng thành một khối lộn xộn.
 
 Vùng xem hiển thị ảnh trên `<canvas>` với `image-rendering: auto` khi zoom < 100%, `pixelated` khi zoom > 100% (để soi pixel không bị nội suy).
 
@@ -505,17 +509,36 @@ Vùng xem hiển thị ảnh trên `<canvas>` với `image-rendering: auto` khi 
 
 ### 11.2. Công cụ
 
-| Công cụ    | Hành vi                                                                                               |
-| ---------- | ----------------------------------------------------------------------------------------------------- |
-| **Crop**   | Kéo chọn vùng (hiện `W × H` device pixel), thả chuột là áp dụng luôn — `Ctrl+Z` để lùi lại.           |
-| **Redact** | Hai kiểu: `Blur` và `Solid` (khối đặc). Kéo để chọn vùng.                                             |
-| **Text**   | Bấm một điểm → hiện ô nhập ngay tại đó, gõ, `Enter` để chốt, `Esc` để huỷ. Màu chọn ở ô màu cạnh nút. |
+| Công cụ       | Hành vi                                                                                                          |
+| ------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Crop**      | Kéo chọn vùng (hiện `W × H` device pixel), thả chuột là áp dụng luôn — `Ctrl+Z` để lùi lại.                      |
+| **Redact**    | Hai kiểu: `Blur` và `Solid` (khối đặc). Kéo để chọn vùng. Huỷ pixel thật, không khôi phục được.                  |
+| **Pen**       | Vẽ tay, nét liền theo đường chuột.                                                                               |
+| **Line**      | Kéo từ A tới B.                                                                                                  |
+| **Arrow**     | Như Line, thêm đầu mũi tên ở B. Thân dừng ở **đáy** tam giác chứ không chạy tới đỉnh (xem dưới).                 |
+| **Rect**      | Khung chữ nhật, viền hoặc tô đặc tuỳ ô `Filled shapes`.                                                          |
+| **Ellipse**   | Như Rect nhưng hình elip nội tiếp vùng kéo.                                                                      |
+| **Highlight** | Vệt tô sáng, vẽ bằng `globalCompositeOperation: multiply` nên chữ bên dưới vẫn đọc được — như bút dạ quang thật. |
+| **Text**      | Bấm một điểm → ô nhập hiện ngay tại đó, gõ, `Enter` chốt, `Esc` huỷ.                                             |
+| **Fill**      | Đổ màu vùng liền màu, flood fill scanline với sai số ±32/kênh.                                                   |
+| **Eraser**    | Tẩy nét đã vẽ, không tẩy ảnh (xem dưới).                                                                         |
+| **Pick**      | Hút màu từ pixel dưới con trỏ vào bảng màu hiện tại.                                                             |
 
-`Arrow` và `Box` vẫn không có: mũi tên và khung là thứ vẽ cho đẹp, còn chữ thì để chỉ rõ _cái gì_ — khác nhau về mục đích chứ không chỉ về công cụ.
+Thuộc tính chung nằm ở hàng thứ hai của toolbar: 8 ô màu dựng sẵn + ô màu tự chọn, hai **hộp size gõ được** (`Line` cho độ dày nét, `Text` cho cỡ chữ), và ô `Filled shapes` cho Rect/Ellipse.
 
-Cỡ chữ tính bằng **CSS pixel của trang gốc rồi nhân với `meta.scale`**, nên nhãn trên ảnh 1× và ảnh 2× trông to như nhau. Viết thẳng bằng pixel ảnh thì trên máy retina chữ ra bé bằng nửa. Chữ được vẽ kèm viền trắng mảnh để đọc được cả trên nền tối mà không cần hộp nền phía sau.
+Mỗi hộp là một **combobox tự dựng**: ô nhập chữ + nút `▾` mở danh sách preset, chọn một cái hoặc gõ số bất kỳ — đúng kiểu ô cỡ chữ của Word. Bốn nút `2 / 4 / 8 / 16` của bản trước bị bỏ: bốn lựa chọn cố định vừa chiếm chỗ vừa không bao giờ đủ.
 
-Ô nhập nằm đè lên canvas đúng vị trí sẽ vẽ, cùng font và cùng tỉ lệ hiển thị, nên lúc chốt không có gì nhảy chỗ. Nó tự đóng khi đổi zoom, đổi part hoặc resize cửa sổ — ba thứ làm vị trí và cỡ chữ của nó không còn đúng nữa.
+Không dùng `<datalist>` vì **Chrome không vẽ dấu hiệu xổ xuống nào cho `<input list=…>`** — cả `type="number"` lẫn `type="text"` đều nhìn y hệt ô nhập thường (đã dựng thử ba kiểu cạnh nhau để so: chỉ `<select>` mới có mũi tên). Danh sách preset mà không ai biết là có thì coi như không tồn tại, nên mũi tên và danh sách ở đây là của mình.
+
+Chevron là **SVG 18×18 trong vùng bấm 30×26** trải hết chiều cao ô, không phải ký tự `▾`: ký tự đó vẽ nhỏ và mỗi font một kiểu, lại không cho chỉnh vùng bấm. Mỗi dòng trong danh sách cao tối thiểu 34px và danh sách rộng tối thiểu 120px — kích thước bấm được bằng chuột mà không cần ngắm.
+
+Giá trị kẹp trong `[1, 200]` cho nét và `[6, 400]` cho chữ. Hộp để trống thì trở về mặc định chứ **không** kẹp xuống min: `Number('')` là `0` — một số hữu hạn — nên nếu không chặn riêng, xoá trắng ô sẽ lặng lẽ cho ra nét mảnh 1px.
+
+**Mũi tên: thân dừng trước đỉnh.** `lineCap: 'round'` làm nét lồi thêm nửa độ dày ra ngoài điểm kết thúc, nên thân chạy thẳng tới `(x2,y2)` sẽ chọc một cục màu xuyên qua tam giác — nhìn hệt như tam giác bị thụt vào trong. Thân vì thế dừng ở `length - head*0.9` và dùng `lineCap: 'butt'`, để đỉnh tam giác là điểm xa nhất của cả hình.
+
+**Eraser trả pixel gốc về, không phải bôi trắng.** Lúc replay, nếu stack có lệnh eraser thì dựng thêm một canvas `clean` = ảnh gốc đã áp **crop và redact** nhưng chưa có nét vẽ nào; eraser stroke bằng `createPattern(clean)` nên nét tẩy tới đâu, pixel gốc hiện lại tới đó. Redact nằm trong `clean` là có chủ đích: tẩy lên vùng đã che **không** làm lộ lại nội dung — nếu không thì eraser trở thành đường vòng phá chính lời hứa của Redact (§19). Canvas thứ hai chỉ được tạo khi thật sự có eraser trong stack, vì với ảnh dài nó tốn thêm cả trăm MB.
+
+Độ dày nét và cỡ chữ đều tính bằng **CSS pixel của trang gốc rồi nhân `meta.scale`**, nên nét 4px trông như nhau trên ảnh 1× và 2×.
 
 Mọi thao tác ghi vào **stack lệnh** (không phá blob gốc). `Undo` (`Ctrl+Z`) pop stack và vẽ lại từ blob gốc. `Reset` xoá sạch stack. Crop đổi hệ toạ độ, nên các lệnh thêm sau đó nằm trong hệ đã crop — replay từ đầu giữ đúng thứ tự nên không lệch.
 
@@ -789,7 +812,6 @@ Hình: máy ảnh compact, thân tím `#5546CB`, mặt vàng `#FDCD60`, ống k�
 - Chụp một vùng, một phần tử, hay chỉ phần nhìn thấy (§3.2).
 - Chụp 2×/3× qua `chrome.debugger` — **đã bỏ hẳn** (§2.6).
 - Chọn tay vùng cuộn khi tự dò sai (§2.5).
-- Chú thích bằng mũi tên và khung (§11.2).
 - Xuất PDF (§11.3).
 - Ghép theo cả chiều ngang (trang rộng hơn viewport).
 - Lịch sử ảnh đã chụp.
