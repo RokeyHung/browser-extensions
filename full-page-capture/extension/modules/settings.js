@@ -54,15 +54,28 @@
     return coerce(bag && bag.settings);
   }
 
-  async function save(patch) {
-    const next = coerce({ ...(await get()), ...(patch || {}) });
-    await chrome.storage.sync.set({ settings: next });
-    return next;
+  // Saves are read-modify-write, so two of them in flight at once both read the
+  // same starting state and the second one writes the first one's change away.
+  // The options page makes exactly that call per control: flip two switches in
+  // quick succession and one of them silently does not stick. Chaining keeps
+  // each save reading what the previous one wrote.
+  let queue = Promise.resolve();
+
+  function save(patch) {
+    queue = queue.then(async () => {
+      const next = coerce({ ...(await get()), ...(patch || {}) });
+      await chrome.storage.sync.set({ settings: next });
+      return next;
+    });
+    return queue;
   }
 
-  async function reset() {
-    await chrome.storage.sync.set({ settings: { ...DEFAULTS } });
-    return { ...DEFAULTS };
+  function reset() {
+    queue = queue.then(async () => {
+      await chrome.storage.sync.set({ settings: { ...DEFAULTS } });
+      return { ...DEFAULTS };
+    });
+    return queue;
   }
 
   globalThis.Settings = { DEFAULTS, C, coerce, get, save, reset };

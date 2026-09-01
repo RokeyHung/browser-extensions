@@ -637,6 +637,8 @@ Settings ở `chrome.storage.sync` (nhỏ, đồng bộ được), ảnh ở Ind
 
 Ba khoá, đúng bằng ba control ở §13. Popup ghi thẳng vào `afterCapture` khi user bấm segmented — cùng một khoá mà Options ghi, không có "lựa chọn tạm cho lượt này".
 
+**`save()` và `reset()` nối tiếp nhau qua một hàng đợi promise.** Chúng là read-modify-write trên cả object settings, nên hai lời gọi chồng lấn sẽ cùng đọc một trạng thái gốc rồi ghi đè nhau — thay đổi của cái trước biến mất không dấu vết. Trang Options gọi đúng một lần cho **mỗi** control, nên bật hai switch sát nhau là đủ để mất một cái.
+
 ## 15. Message protocol
 
 ### 15.1. Extension page → service worker

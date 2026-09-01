@@ -8,6 +8,8 @@ Tất cả thay đổi đáng chú ý của extension **Full Page Capture** đư
 
 ### Fixed
 
+- **Đổi hai option sát nhau thì mất một cái** — `Settings.save()` là read-modify-write trên cả object settings, mà trang Options gọi nó một lần cho **mỗi** control. Hai lời gọi chồng lấn cùng đọc một trạng thái gốc rồi ghi đè nhau, thay đổi của cái trước biến mất không dấu vết. Nay `save()` và `reset()` nối tiếp qua một hàng đợi promise nên mỗi lượt đọc được đúng thứ lượt trước vừa ghi.
+
 - **App bar tự ghim khi cuộn bị chụp lặp lại ở mọi màn** — danh sách phần tử `fixed`/`sticky` được lập **một lần duy nhất lúc trang còn ở `scrollTop = 0`**. Kiểu header rất phổ biến là `static` ở đỉnh trang rồi chỉ thành `fixed` khi scroll handler gắn class vào: lúc quét nó chưa `fixed` nên không bao giờ bị ẩn, và lặp lại ở từng màn chụp. Đo trên fixture đúng kiểu đó: bar hiện **7 lần** trên ảnh, trong khi badge luôn `fixed` từ đầu thì chỉ hiện 1 lần — chênh lệch đó chỉ thẳng vào nguyên nhân.
 - Nay quét lại ở **mỗi** màn chụp, sau `requestAnimationFrame` đầu tiên kể từ lúc cuộn để scroll handler của trang kịp chạy. Phần tử đã biết được bỏ qua nên chỉ trả giá cho phần tử mới: **5–9ms** trên DOM 12 000 phần tử, so với 549ms mỗi màn vốn đã phải chờ quota của `captureVisibleTab` — tức không thêm thời gian thực tế nào.
 - **Bar nằm trong shadow root cũng lặp lại** — `TreeWalker` dừng ở ranh giới shadow, mà web component đúng là chỗ thanh bar, cookie banner và widget chat ngày nay hay nằm; đo được lặp 5/5 màn. Nay quét cả shadow root **mở**. Root **closed** thì vẫn chịu, không có đường nhìn vào từ bên ngoài.
