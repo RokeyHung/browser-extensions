@@ -4,6 +4,16 @@ Tất cả thay đổi đáng chú ý của extension **Full Page Capture** đư
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.2.2] - 2026-08-31
+
+### Fixed
+
+- **App bar tự ghim khi cuộn bị chụp lặp lại ở mọi màn** — danh sách phần tử `fixed`/`sticky` được lập **một lần duy nhất lúc trang còn ở `scrollTop = 0`**. Kiểu header rất phổ biến là `static` ở đỉnh trang rồi chỉ thành `fixed` khi scroll handler gắn class vào: lúc quét nó chưa `fixed` nên không bao giờ bị ẩn, và lặp lại ở từng màn chụp. Đo trên fixture đúng kiểu đó: bar hiện **7 lần** trên ảnh, trong khi badge luôn `fixed` từ đầu thì chỉ hiện 1 lần — chênh lệch đó chỉ thẳng vào nguyên nhân.
+- Nay quét lại ở **mỗi** màn chụp, sau `requestAnimationFrame` đầu tiên kể từ lúc cuộn để scroll handler của trang kịp chạy. Phần tử đã biết được bỏ qua nên chỉ trả giá cho phần tử mới: **5–9ms** trên DOM 12 000 phần tử, so với 549ms mỗi màn vốn đã phải chờ quota của `captureVisibleTab` — tức không thêm thời gian thực tế nào.
+- **Bar nằm trong shadow root cũng lặp lại** — `TreeWalker` dừng ở ranh giới shadow, mà web component đúng là chỗ thanh bar, cookie banner và widget chat ngày nay hay nằm; đo được lặp 5/5 màn. Nay quét cả shadow root **mở**. Root **closed** thì vẫn chịu, không có đường nhìn vào từ bên ngoài.
+- **Ẩn bằng inline style thay cho class** — class phụ thuộc `<style>` đặt trong document, mà style của document không lọt vào shadow root, nên phần tử tìm thấy trong web component sẽ được thu thập rồi… vẫn hiện nguyên trong ảnh.
+- Có test hồi quy: đếm số dải màu của bar dọc ảnh kết quả, phải đúng một dải ở đầu — cho cả bar thường lẫn bar trong shadow root.
+
 ## [1.2.0] - 2026-08-31
 
 ### Added

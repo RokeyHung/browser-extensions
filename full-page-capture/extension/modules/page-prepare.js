@@ -58,6 +58,60 @@
     await frames(2);
   }
 
+  // Elements that stay put while the page scrolls, so they would otherwise be
+  // photographed once per screenful.
+  //
+  // This has to run again on every shot, not once up front. A very common app-bar
+  // pattern is a header that is `static` at the top of the page and only becomes
+  // `fixed` once a scroll handler adds a class — at scroll 0, which is where a
+  // one-shot scan runs, there is nothing to find. Already-known elements are
+  // skipped, so repeat scans only pay for elements that are new.
+  // Open shadow roots are walked too. A TreeWalker stops at the shadow boundary,
+  // and web components are exactly where today's sticky bars, cookie banners and
+  // chat widgets live — measured on a fixture, a bar in a shadow root repeated on
+  // all five screenfuls. A *closed* root stays invisible to us; nothing can be
+  // done about that from outside (§7.4).
+  function collectPinned(state) {
+    const doc = document;
+    const roots = [doc.body || doc.documentElement];
+    let seen = 0;
+
+    while (roots.length && seen < 20000) {
+      const walker = doc.createTreeWalker(roots.shift(), NodeFilter.SHOW_ELEMENT);
+      while (walker.nextNode() && seen < 20000) {
+        seen++;
+        const node = walker.currentNode;
+        if (node.shadowRoot) roots.push(node.shadowRoot);
+        if (state.known.has(node) || node.hasAttribute('data-fpc-overlay')) continue;
+        const position = getComputedStyle(node).position;
+        if (position !== 'fixed' && position !== 'sticky') continue;
+        const rect = node.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) continue;
+        state.known.add(node);
+        state.fixed.push({ el: node, sticky: position === 'sticky', hidden: false });
+      }
+    }
+    return state.fixed.length;
+  }
+
+  // Sticky elements are unstuck rather than hidden — they are usually real
+  // content, such as a table's column headings.
+  //
+  // Inline styles, not classes: a class would depend on the <style> element in
+  // the document, and document styles do not cross into a shadow root. Anything
+  // found inside a web component would have been collected and then not hidden.
+  function hidePinned(state) {
+    for (const entry of state.fixed) {
+      if (entry.hidden) continue;
+      const property = entry.sticky ? 'position' : 'visibility';
+      entry.property = property;
+      entry.previous = entry.el.style.getPropertyValue(property);
+      entry.priority = entry.el.style.getPropertyPriority(property);
+      entry.el.style.setProperty(property, entry.sticky ? 'static' : 'hidden', 'important');
+      entry.hidden = true;
+    }
+  }
+
   async function freeze({ preloadLazyImages, lazyTimeout }) {
     const doc = document;
     const el = scroller();
@@ -67,7 +121,7 @@
       videos: [],
       overflow: null,
       fixed: [],
-      hidden: false,
+      known: new Set(),
     };
     window.__fpcState = state;
     window.__fpcCancel = false;
@@ -78,10 +132,7 @@
     const style = doc.createElement('style');
     style.id = STYLE_ID;
     style.textContent =
-      'html,body{scroll-behavior:auto !important}' +
-      '*,*::before,*::after{animation-play-state:paused !important;transition:none !important}' +
-      '.__fpc_hidden{visibility:hidden !important}' +
-      '.__fpc_unstick{position:static !important}';
+      'html,body{scroll-behavior:auto !important}' + '*,*::before,*::after{animation-play-state:paused !important;transition:none !important}';
     (doc.head || doc.documentElement).appendChild(style);
 
     for (const video of doc.querySelectorAll('video')) {
@@ -103,20 +154,7 @@
 
     if (preloadLazyImages) await preloadImages(el, lazyTimeout);
 
-    // Fixed and sticky elements repeat on every tile unless dealt with. Collected
-    // once here so the per-tile path is a class toggle rather than a DOM walk.
-    const walker = doc.createTreeWalker(doc.body || doc.documentElement, NodeFilter.SHOW_ELEMENT);
-    let seen = 0;
-    while (walker.nextNode() && seen < 20000) {
-      seen++;
-      const node = walker.currentNode;
-      if (node.hasAttribute('data-fpc-overlay')) continue;
-      const position = getComputedStyle(node).position;
-      if (position !== 'fixed' && position !== 'sticky') continue;
-      const rect = node.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) continue;
-      state.fixed.push({ el: node, sticky: position === 'sticky' });
-    }
+    collectPinned(state);
 
     el.scrollTop = 0;
     await frames(2);
@@ -138,12 +176,13 @@
     el.scrollLeft = 0;
 
     // Tile 0 keeps the header: that is where it genuinely belongs in the final
-    // image. From tile 1 on it would be a band repeating down the page. Sticky
-    // elements are unstuck rather than hidden — they are usually real content,
-    // such as a table's column headings.
-    if (index > 0 && !state.hidden) {
-      for (const entry of state.fixed) entry.el.classList.add(entry.sticky ? '__fpc_unstick' : '__fpc_hidden');
-      state.hidden = true;
+    // image. From tile 1 on it would be a band repeating down the page.
+    if (index > 0) {
+      // One frame first, so the page's own scroll handler has run and any bar
+      // that pins itself on scroll is already `fixed` when we look.
+      await frames(1);
+      collectPinned(state);
+      hidePinned(state);
     }
 
     setOverlayVisible(false);
@@ -170,7 +209,11 @@
     const state = window.__fpcState;
     if (!state) return { ok: true };
 
-    for (const entry of state.fixed) entry.el.classList.remove('__fpc_hidden', '__fpc_unstick');
+    for (const entry of state.fixed) {
+      if (!entry.hidden) continue;
+      if (entry.previous) entry.el.style.setProperty(entry.property, entry.previous, entry.priority);
+      else entry.el.style.removeProperty(entry.property);
+    }
 
     if (state.overflow) {
       const { el, value, priority } = state.overflow;

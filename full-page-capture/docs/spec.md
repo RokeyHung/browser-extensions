@@ -315,7 +315,11 @@ Nếu `tiles > MAX_TILES` (**80**, tương ứng trang cao ~72 000px ở viewpor
 Với mỗi tile `i`:
 
 1. `scrollTo({ top: y, left: 0, behavior: 'instant' })` trên `scrollTarget`.
-2. Ẩn phần tử fixed/sticky nếu `i > 0`: thêm class `__fpc_hidden { visibility: hidden !important }`. Tile 0 giữ nguyên để header vẫn xuất hiện đúng một lần ở đầu ảnh.
+2. **Quét lại** phần tử fixed/sticky rồi ẩn chúng nếu `i > 0`: thêm class `__fpc_hidden { visibility: hidden !important }`. Tile 0 giữ nguyên để header vẫn xuất hiện đúng một lần ở đầu ảnh.
+   - **Quét lại ở mỗi tile chứ không quét một lần lúc đầu.** Một kiểu app bar rất phổ biến là header `static` ở đỉnh trang, chỉ trở thành `fixed` khi scroll handler gắn class vào — mà bản quét một lần thì chạy ở `scrollTop = 0`, đúng lúc chưa có gì để thấy. Hệ quả là bar đó lặp lại ở **mọi** màn chụp. Phần tử đã biết được bỏ qua nên lượt quét lại chỉ trả giá cho phần tử mới: đo trên DOM 12 000 phần tử là **5–9ms**, so với 549ms mỗi tile vốn đã phải chờ quota (§7.7).
+   - Quét sau `requestAnimationFrame` đầu tiên kể từ lúc cuộn, để scroll handler của trang kịp chạy trước khi mình nhìn.
+   - **Quét cả shadow root mở**: `TreeWalker` dừng ở ranh giới shadow, mà web component đúng là chỗ các thanh bar, cookie banner và widget chat ngày nay hay nằm — đo trên fixture thì một bar trong shadow root lặp đủ **5/5** màn. Shadow root **closed** thì chịu, không có đường nào nhìn vào từ bên ngoài.
+   - Ẩn bằng **inline style** chứ không phải class: class phụ thuộc `<style>` trong document, mà style của document không lọt vào shadow root — quét thấy rồi vẫn không ẩn được.
    - Với `position: sticky`, thay vì ẩn thì đặt `position: static !important` — sticky thường là nội dung thật (tiêu đề cột trong bảng), ẩn đi sẽ mất chữ.
 3. Chờ: `requestAnimationFrame` ×2, rồi `SETTLE_DELAY` (**120ms**).
 4. Đọc `actualScrollY = scrollTarget.scrollTop`.
