@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Element Filter",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Block any element on any website, and inspect it first: selectors, XPath, computed styles, contrast ratio and accessibility issues.",
   "permissions": ["activeTab", "scripting", "storage", "contextMenus", "tabs"],
   "host_permissions": ["<all_urls>"],

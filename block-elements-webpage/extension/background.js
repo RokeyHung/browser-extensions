@@ -2,16 +2,28 @@
 
 // ─── Domain matching (duplicated from rule-matcher.js for service worker context) ──
 
+// True when `base` appears as a run of whole labels inside `hostname` with at
+// least one label left after it. Requiring a trailing label is what stops a
+// pattern from matching a bare TLD, and matching whole labels is what keeps
+// `shop.*` off `myshop.com`.
+//
+// `base` may be several labels ("example.co"), so a hand-written pattern like
+// `example.co.*` still works.
+function hasLabelRun(hostname, base) {
+  const want = base.split('.');
+  const parts = hostname.split('.');
+  for (let i = 0; i + want.length < parts.length; i++) {
+    if (want.every((label, k) => parts[i + k] === label)) return true;
+  }
+  return false;
+}
+
 function matchDomainPattern(pattern, hostname) {
   if (!pattern) return false;
 
-  // *.website.* — subdomain + TLD wildcard: root domain or any subdomain, any TLD
+  // *.website.* — the label anywhere in the host, any TLD (spec §6.4)
   if (pattern.startsWith('*.') && pattern.endsWith('.*')) {
-    const middle = pattern.slice(2, -2);
-    const parts = hostname.split('.');
-    const idx = parts.indexOf(middle);
-    // middle label present and followed by at least a TLD label (idx >= 0 allows the root domain too)
-    return idx >= 0 && idx < parts.length - 1;
+    return hasLabelRun(hostname, pattern.slice(2, -2));
   }
 
   // *.website.com — subdomain wildcard only (does not match the bare root domain)
@@ -20,11 +32,12 @@ function matchDomainPattern(pattern, hostname) {
     return hostname.endsWith('.' + base);
   }
 
-  // website.* — TLD wildcard only (root domain on any TLD)
+  // website.* — the label on any TLD, at the root or under any subdomain.
+  // Deliberately as wide as `*.website.*` (spec §6.3): a rule made from the
+  // "any TLD" scope button has to cover the page it was made on, and on
+  // `news.shop.test` that page is a subdomain.
   if (pattern.endsWith('.*')) {
-    const base = pattern.slice(0, -2);
-    const parts = hostname.split('.');
-    return parts[0] === base && parts.length >= 2;
+    return hasLabelRun(hostname, pattern.slice(0, -2));
   }
 
   // exact / bare domain — also matches www. and any subdomain
@@ -151,7 +164,28 @@ async function getAllRules() {
   return rules;
 }
 
-async function saveRule(rule) {
+// saveRule, updateRule and deleteRule are all read-modify-write over the whole
+// rules array. Two that overlap read the same starting state and the second
+// write wins, dropping the first rule without a trace. Measured window is under
+// 2ms, so no click can hit it — but a second picker in another tab, or an import
+// landing while a rule is being created, does not have to be slow to collide.
+// Chaining every write through one promise makes each one read what the
+// previous just wrote.
+let writeQueue = Promise.resolve();
+function serialise(work) {
+  const run = writeQueue.then(work, work);
+  writeQueue = run.then(
+    () => {},
+    () => {}
+  );
+  return run;
+}
+
+const saveRule = (rule) => serialise(() => doSaveRule(rule));
+const updateRule = (rule) => serialise(() => doUpdateRule(rule));
+const deleteRule = (ruleId) => serialise(() => doDeleteRule(ruleId));
+
+async function doSaveRule(rule) {
   const { rules = [] } = await chrome.storage.local.get('rules');
   const now = new Date().toISOString();
   const newRule = {
@@ -166,7 +200,7 @@ async function saveRule(rule) {
   return { success: true, rule: newRule };
 }
 
-async function updateRule(updatedRule) {
+async function doUpdateRule(updatedRule) {
   const { rules = [] } = await chrome.storage.local.get('rules');
   const idx = rules.findIndex((r) => r.id === updatedRule.id);
   if (idx === -1) return { success: false, error: 'Rule not found' };
@@ -176,7 +210,7 @@ async function updateRule(updatedRule) {
   return { success: true };
 }
 
-async function deleteRule(ruleId) {
+async function doDeleteRule(ruleId) {
   const { rules = [] } = await chrome.storage.local.get('rules');
   const filtered = rules.filter((r) => r.id !== ruleId);
   await chrome.storage.local.set({ rules: filtered });

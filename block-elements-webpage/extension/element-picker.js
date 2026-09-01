@@ -26,6 +26,27 @@ const ElementPicker = (() => {
   // Names for the four levels produced by SelectorGenerator, in slider order.
   const LEVEL_LABELS = ['Least specific', 'Medium', 'Specific', 'Full path'];
 
+  // Second-level labels a registry uses to group registrations rather than to
+  // name a site: the `co` in `co.uk`, the `com` in `com.vn`.
+  const REGISTRY_LABELS = new Set(['co', 'com', 'net', 'org', 'edu', 'gov', 'ac', 'or', 'ne', 'go', 'mil', 'gob', 'nom']);
+
+  // The site's own label, for the "any TLD" scope button — `shop` for
+  // shop.test, www.shop.test, news.shop.test and shop.co.uk alike.
+  //
+  // Taking hostname-minus-last-label instead produced `news.shop` and `shop.co`,
+  // neither of which any host can match, so the button silently wrote rules that
+  // never fired. Stepping left past registry labels covers the ccSLD shapes
+  // without shipping a public suffix list; this only suggests a pattern, and
+  // Custom is there for the cases the guess gets wrong.
+  // Returns null for hosts with no label to generalise (localhost, an IP).
+  function siteLabel(hostname) {
+    const parts = hostname.replace(/^www\./, '').split('.');
+    if (parts.length < 2 || /^\d+$/.test(parts[parts.length - 1])) return null;
+    let i = parts.length - 2;
+    while (i > 0 && REGISTRY_LABELS.has(parts[i])) i--;
+    return parts[i] || null;
+  }
+
   // ─── Entry ────────────────────────────────────────────────────────────────
 
   // mode: 'block' (default) or 'inspect' — decides which tab opens first.
@@ -212,8 +233,7 @@ const ElementPicker = (() => {
 
   function buildBlockHTML(hostname) {
     const baseDomain = hostname.replace(/^www\./, '');
-    const parts = baseDomain.split('.');
-    const root = parts.slice(0, -1).join('.');
+    const root = siteLabel(hostname);
 
     return `
       <div class="ef-panel-body">
@@ -436,8 +456,7 @@ const ElementPicker = (() => {
 
     const hostname = location.hostname;
     const baseDomain = hostname.replace(/^www\./, '');
-    const parts = baseDomain.split('.');
-    const root = parts.slice(0, -1).join('.');
+    const root = siteLabel(hostname);
 
     let domainPattern;
     switch (scopeOption) {
@@ -445,7 +464,10 @@ const ElementPicker = (() => {
         domainPattern = '*.' + baseDomain;
         break;
       case 'wildcard-tld':
-        domainPattern = root + '.*';
+        // The radio is only offered when there is a label to generalise, but a
+        // stale scopeOption could still arrive here — fall back rather than
+        // write "null.*".
+        domainPattern = root ? root + '.*' : baseDomain;
         break;
       case 'custom': {
         const customInput = panelEl.querySelector('#ef-custom-domain');

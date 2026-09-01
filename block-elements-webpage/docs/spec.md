@@ -173,10 +173,9 @@ Site:
 website.com
 
 Apply to:
-( ) website.com only
+( ) website.com  (+ www & subdomains)
 ( ) *.website.com
 ( ) website.*
-( ) Current page path only
 ( ) Custom
 
 Selector:
@@ -189,6 +188,8 @@ Matched elements: 1
 
 [Preview] [Create] [Cancel]
 ```
+
+Không có lựa chọn `Current page path only` — bản mock trước 1.2.0 liệt kê nó nhưng picker chưa bao giờ dựng nút đó; rule tạo từ picker luôn có `pathPattern: null`. Lọc theo path vẫn chạy ở tầng matcher (§5, `matchPathPattern`) và sửa được tay trong trang Manage Filters.
 
 ## 4.4. Specificity slider
 
@@ -249,6 +250,29 @@ Khi user click `Preview`:
 - User có thể restore bằng `Cancel`.
 
 ## 4.6. Create rule
+
+Panel có bốn lựa chọn phạm vi, đứng ở `news.shop.co.uk` thì lần lượt là:
+
+| Nút        | Pattern sinh ra     | Ghi chú                                   |
+| ---------- | ------------------- | ----------------------------------------- |
+| Bare       | `news.shop.co.uk`   | root + `www.` + mọi subdomain (§6.1)      |
+| `*.domain` | `*.news.shop.co.uk` | chỉ subdomain (§6.2)                      |
+| Any TLD    | `shop.*`            | nhãn site trên mọi TLD (§6.3)             |
+| Custom     | user tự gõ          | dùng khi ba nút trên không diễn tả đúng ý |
+
+Nhãn cho nút `Any TLD` là **nhãn site**, không phải "hostname bỏ nhãn cuối". Lấy nhãn kế cuối rồi bước sang trái chừng nào còn gặp nhãn registry (`co`, `com`, `net`, `org`, `edu`, `gov`, `ac`, `or`, `ne`, `go`, `mil`, `gob`, `nom`):
+
+```text
+shop.test             -> shop
+www.shop.test         -> shop
+news.shop.test        -> shop
+shop.co.uk            -> shop
+news.example.co.uk    -> example
+```
+
+Đây là **phỏng đoán để gợi ý pattern**, không phải cơ chế phân định phạm vi bảo mật — nó không cần chính xác tuyệt đối vì user luôn thấy pattern trước khi bấm `Create`, và `Custom` có sẵn cho những trường hợp đoán trượt. Host không có nhãn nào để khái quát (`localhost`, IP) thì nút `Any TLD` không hiện.
+
+Trước 1.2.0 nhãn này được tính bằng `hostname.split('.').slice(0, -1).join('.')`, ra `news.shop` và `shop.co` — những chuỗi mà không hostname nào khớp được, nên nút này lặng lẽ tạo rule chết trên mọi host trừ dạng `label.tld` trần.
 
 Khi user click `Create`:
 
@@ -418,13 +442,16 @@ Rule:
 website.*##.banner
 ```
 
-Match:
+Match — nhãn `website` đứng ở **bất kỳ vị trí nào** trong hostname, miễn là còn ít nhất một nhãn phía sau:
 
 ```text id="348je6"
 website.com
 website.vn
 website.net
 website.co.jp
+www.website.com
+news.website.co.jp
+website.example.com
 ```
 
 Không match:
@@ -432,8 +459,20 @@ Không match:
 ```text id="17dyz5"
 anotherwebsite.com
 mywebsite.com
-website.example.com
+website
 ```
+
+Quy tắc so khớp là **theo nhãn nguyên vẹn**, nên `mywebsite.com` không dính: `mywebsite` là một nhãn khác, không phải `website`. Yêu cầu còn ít nhất một nhãn phía sau là thứ giữ cho pattern không bao giờ khớp một TLD trần.
+
+`base` được phép nhiều nhãn, nên pattern gõ tay như `example.co.*` vẫn chạy: khớp `example.co.uk`, `shop.example.co.uk`, không khớp `example.com`.
+
+### Vì sao rộng đến mức này
+
+Bản 1.1.0 định nghĩa `website.*` là "chỉ root domain trên mọi TLD" (`parts[0] === base`). Hệ quả là nút scope `Any TLD` trong picker tạo ra rule **không phủ chính trang vừa tạo nó**: đứng ở `www.shop.test` hay `news.shop.test` bấm nút đó thì rule lưu xong, hiện màn "Filter Created", rồi không bao giờ chạy. Xem §4.6.
+
+Mở rộng sang "nhãn ở bất kỳ đâu" khiến `website.*` và `*.website.*` (§6.4) trở thành **đồng nghĩa**. Đây là đánh đổi có ý thức: giữ hai pattern phân biệt thì phải biết đâu là public suffix để tách nhãn site, tức phải mang theo một danh sách eTLD — đã cân nhắc và bỏ. `*.website.*` được giữ lại như một cách viết tương đương, không phải một ngữ nghĩa khác.
+
+Đổi lại, `website.*` phủ rộng hơn ý user hay nghĩ: rule `shop.*` sẽ ẩn element trên `shop.bất-kỳ-đâu.com`. Với một extension chỉ ẩn element thì hậu quả tối đa là vỡ giao diện một site không liên quan, không đụng tới dữ liệu; ai cần hẹp hơn thì dùng scope `Custom`.
 
 ## 6.4. Root + subdomain + TLD wildcard
 
@@ -452,7 +491,7 @@ m.website.vn
 dev.website.co.jp
 ```
 
-MVP có thể support nhưng cần cẩn thận để tránh rule quá rộng.
+Từ 1.2.0, pattern này **đồng nghĩa với `website.*`** (§6.3) — cùng một hàm so khớp theo nhãn. Giữ lại vì rule cũ đã viết theo dạng này, và vì `*.website.*` đọc ra ý "mọi subdomain, mọi TLD" rõ hơn với người mới. Không có trường hợp nào hai pattern cho kết quả khác nhau.
 
 ## 7. Apply rule behavior
 
@@ -641,7 +680,8 @@ Công thức WCAG 2.1: `(L1 + 0.05) / (L2 + 0.05)` với `L` là relative lumina
 - Màu chữ có alpha < 1 cũng được composite lên nền trước khi tính.
 - Ngưỡng: text thường AA ≥ 4.5, AAA ≥ 7; text lớn (≥ 24px, hoặc ≥ 18.66px và bold ≥ 700) AA ≥ 3, AAA ≥ 4.5.
 - Chỉ tính khi element có **direct text node**. Element chỉ chứa element con thì báo "không có text trực tiếp" thay vì đưa ra số sai.
-- Nếu trên đường đi có `background-image`/gradient, kết quả được đánh dấu là ước lượng — extension không sample pixel thật.
+- Nếu trên đường đi có `background-image`/gradient, hoặc có `background-color` không parse được, kết quả được đánh dấu là **ước lượng** — extension đọc computed style chứ không sample pixel thật.
+- Trường hợp **không lớp cha nào tô gì cả** thì ngược lại: đó là trường hợp chắc chắn nhất, nền đúng bằng canvas trắng. Không được đánh dấu ước lượng. Trước 1.2.0 nhánh này dùng chung cờ với nhánh gradient, nên mọi element chữ thường trên mọi trang không set `background-color` (tức phần lớn trang) đều bị gắn dòng "Background involves an image or gradient" — sai nội dung, và làm cờ đó mất hết ý nghĩa ở chỗ nó thực sự đúng.
 
 ### 10bis.4. Accessibility checks
 
@@ -740,6 +780,10 @@ Phụ trách:
 - Load/save rules từ `chrome.storage.local`.
 - Inject element picker.
 - Gửi matched rules cho content script.
+
+`saveRule`, `updateRule` và `deleteRule` đều là read-modify-write trên **cả mảng** `rules`, nên hai lời gọi chồng nhau cùng đọc một trạng thái gốc rồi ghi đè nhau — rule của lượt trước biến mất không dấu vết. Cả ba nối tiếp qua **một hàng đợi promise** để mỗi lượt đọc được đúng thứ lượt trước vừa ghi. Cửa sổ đua đo được dưới 2ms nên không cú bấm nào chạm tới, nhưng picker mở ở tab thứ hai, hoặc một lượt Import rơi đúng lúc đang tạo rule, thì không cần chậm mới va vào nhau.
+
+`matchDomainPattern` và `matchPathPattern` được **chép nguyên si** sang `rule-matcher.js` vì service worker không nạp được content script. Hai bản phải luôn cho cùng kết quả; hiện chưa có cơ chế chặn drift tự động, nên mọi thay đổi phải sửa cả hai file cùng lúc.
 
 ## 13.3. `content.js`
 
@@ -1011,6 +1055,9 @@ website.com
 website.vn
 website.net
 website.co.jp
+www.website.com
+news.website.co.jp
+website.example.com
 ```
 
 và không apply trên:
@@ -1018,7 +1065,10 @@ và không apply trên:
 ```text id="bgn11d"
 anotherwebsite.com
 mywebsite.com
+website
 ```
+
+Thêm: rule tạo bằng nút scope `Any TLD` phải apply trên **chính trang vừa tạo nó**, với mọi hình dạng hostname — `shop.test`, `www.shop.test`, `news.shop.test`, `shop.co.uk`, `news.example.co.uk`.
 
 ### AC-06: Support `*.website.com`
 

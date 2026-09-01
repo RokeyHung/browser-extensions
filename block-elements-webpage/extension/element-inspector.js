@@ -125,9 +125,16 @@ const ElementInspector = (() => {
 
     // Nothing opaque found: the browser canvas shows through, which is white by
     // default. Composite whatever we collected over it.
+    //
+    // This is the *certain* case, not an uncertain one: no ancestor painted
+    // anything, so white is exactly what is behind the text. Flagging it as an
+    // estimate put "Background involves an image or gradient" on every plain
+    // text element of every page that never sets a background-color — which is
+    // most pages — and made the one honest use of the flag meaningless.
+    // `uncertain` now means only what its message says: an image, a gradient,
+    // or a colour we could not parse.
     const canvas = { r: 255, g: 255, b: 255, a: 1 };
     const final = accumulated ? blend(accumulated, canvas) : canvas;
-    if (!accumulated) uncertain = true;
 
     return { color: final, uncertain, source };
   }

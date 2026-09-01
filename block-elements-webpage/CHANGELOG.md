@@ -4,6 +4,28 @@ Tất cả thay đổi đáng chú ý của extension **Element Filter** đượ
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-09-01
+
+### Fixed
+
+- **Nút scope `Any TLD` tạo ra rule chết ngay lúc tạo** — nặng nhất trong đợt này vì nó im lặng: rule lưu thành công, panel hiện màn "Filter Created", rồi rule không bao giờ chạy. Nhãn được tính bằng `hostname.split('.').slice(0, -1).join('.')`, nên `news.shop.test` ra pattern `news.shop.*` và `shop.co.uk` ra `shop.co.*` — những chuỗi mà `matchDomainPattern` không thể khớp, vì nhánh `X.*` khi đó đòi `parts[0] === X` tức X phải là **một** nhãn. Đo trên 5 hình dạng hostname: chỉ `shop.test` (đúng hai nhãn, không `www.`) là chạy, 4/5 còn lại rule chết.
+- Nay nhãn được lấy là **nhãn site**: nhãn kế cuối, bước sang trái chừng nào còn gặp nhãn registry (`co`, `com`, `net`, `org`, `edu`…). Cả năm hình dạng đều ra pattern phủ đúng trang vừa tạo nó. Đây là phỏng đoán để gợi ý, không phải cơ chế phân định phạm vi — user luôn nhìn thấy pattern trước khi bấm `Create`, và `Custom` có sẵn cho lúc đoán trượt, nên không cần kéo theo một danh sách public suffix.
+- **Inspect báo "Background involves an image or gradient" trên trang không hề có ảnh lẫn gradient** — `effectiveBackground()` bật cờ `uncertain` ở cả hai nhánh: gặp `background-image` thật, **và** không lớp cha nào tô gì cả. Nhánh sau lại là trường hợp _chắc chắn nhất_ — nền đúng bằng canvas trắng, tỉ lệ 21:1 chính xác tuyệt đối. Đo chuỗi cha trên trang trống: `background-image` là `none` ở cả `p`, `body`, `html`, vẫn dính cảnh báo. Vì trang không set `background-color` trên `html`/`body` là phần lớn trang, gần như mọi element chữ thường đều bị gắn dòng sai này, và cờ đó mất hết ý nghĩa ở chỗ nó thực sự đúng. Nay `uncertain` chỉ còn mang đúng nghĩa câu thông báo của nó.
+- **Hai lượt ghi rule chồng nhau thì mất một** — `saveRule`, `updateRule`, `deleteRule` đều là read-modify-write trên cả mảng `rules`. Cùng loại lỗi với `Settings.save()` của full-page-capture 1.2.3. Đo cửa sổ đua: cách nhau 0–1ms thì mất một rule, từ 2ms trở lên thì không. Không cú bấm nào chạm tới được, và Import ghi cả mảng bằng một `set` nên cũng không lặp `saveRule` — tức đây là rủi ro tiềm ẩn chứ chưa cắn ai. Vẫn sửa: cả ba nối tiếp qua một hàng đợi promise.
+
+### Changed
+
+- **`website.*` mở rộng thành "nhãn ở bất kỳ đâu trong hostname, mọi TLD"** (§6.3). Trước đây là "chỉ root domain trên mọi TLD" (`parts[0] === base`), nên `website.*` không phủ `www.website.com` hay `news.website.co.jp` — chính là lý do nút `Any TLD` không phủ nổi trang đang đứng. So khớp theo **nhãn nguyên vẹn** nên `mywebsite.com` vẫn không dính, và vẫn đòi ít nhất một nhãn phía sau nên pattern không bao giờ khớp một TLD trần. `base` nhiều nhãn cũng chạy: `example.co.*` khớp `example.co.uk` và `shop.example.co.uk`, không khớp `example.com`.
+- Hệ quả có ý thức: `website.*` và `*.website.*` (§6.4) nay **đồng nghĩa**. Giữ hai ngữ nghĩa phân biệt thì phải biết đâu là public suffix để tách nhãn site, tức phải mang theo danh sách eTLD — đã cân nhắc và bỏ. `*.website.*` giữ lại như cách viết tương đương.
+- Đổi lại phạm vi rộng hơn ý user hay nghĩ: rule `shop.*` sẽ ẩn element trên `shop.bất-kỳ-đâu.com`. Với extension chỉ ẩn element thì hậu quả tối đa là vỡ giao diện một site không liên quan, không đụng dữ liệu; ai cần hẹp hơn dùng scope `Custom`.
+
+### Notes
+
+- Kiểm chứng end-to-end trên Chrome for Testing 152 qua CDP, 193/193 assertion. `rule-matcher.js`, `selector-generator.js` và `element-inspector.js` là content script nên nằm trong isolated world mà `Runtime.evaluate` mặc định không với tới; suite bắt `Runtime.executionContextCreated`, tìm context tên `Element Filter` rồi evaluate thẳng vào đó — thứ được test là code trình duyệt thực sự nạp, không phải bản chép lại require trong Node.
+- 26 cặp domain pattern được chạy trên **cả hai** bản copy của `matchDomainPattern` và assert chúng đồng ý với nhau, vì `background.js` và `rule-matcher.js` giữ hai bản chép tay không có cơ chế chặn drift.
+- Picker được điều khiển bằng chuột thật qua `Input.dispatchMouseEvent` (mouseover trước rồi mới click, vì picker bám target qua `mouseover`), phủ AC-01/02/07/08/09 và cả 5 hình dạng hostname cho nút `Any TLD`.
+- Hostname trong fixture phải bịa dạng `.test`: `website.com`, `shop.com` là domain thật và HSTS-preloaded, Chrome nâng `http://` lên `https://` trước khi `--host-resolver-rules` kịp áp dụng và mọi trang chết ở `ERR_SSL_PROTOCOL_ERROR` — một lần lỗi này đã lọt qua vì trang lỗi vẫn đạt `readyState === "complete"`, nên suite giờ chặn thẳng ở bước điều hướng.
+
 ## [1.1.0] - 2026-07-26
 
 ### Added
