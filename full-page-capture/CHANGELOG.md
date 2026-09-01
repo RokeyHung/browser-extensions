@@ -1,21 +1,27 @@
 # Changelog
 
-## 1.0.0
+Tất cả thay đổi đáng chú ý của extension **Full Page Capture** được ghi lại ở file này.
 
-First implementation, following `docs/spec.md`.
+Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
-- **Capture the whole page you are looking at**, full length, by scrolling and stitching on `OffscreenCanvas` at the display's real device pixels — no resampling, no downscaling (§5, §7). Tiles are drawn from the scroll position the browser actually reports, so long pages come out without seams.
-- **No host permissions.** The extension asks for access to nothing at install time: `activeTab`, granted by your click or `Alt+Shift+S`, is all a capture of the current tab needs (§18).
-- **Nothing is opened, navigated or crawled.** The page is already on screen, so the first screenful is shot ~0.8s after the click.
-- **Fixed and sticky elements** are hidden from the second screenful on, sticky ones unstuck rather than hidden; animations, transitions and videos are frozen; lazy images are forced to load first. All of it is undone in a `finally`, including after a failure or a stop.
-- **Images too large for Chrome's canvas limits are split into parts**, never scaled down (§8).
-- **Result page** with crop and redact (blur or solid, destroying the pixels for real), undo, fit/100% zoom, PNG/JPEG export and copy to clipboard (§11).
-- **Save to disk mode** writes the file through an offscreen document and deletes it from the workspace as soon as it lands (§16).
-- **Three settings, one button, one choice in the popup** — where the result goes (§12, §13). Everything else is an internal constant.
-- **No history, no network requests at all, no `debugger` permission** (§19).
+## [1.0.0] - Initial release
 
-Verified end to end in Chrome for Testing over CDP: a real `Alt+Shift+S` invocation captures a 3858px page as 10 screenfuls in 5.9s with no host permissions; the stitched PNG is full length with the fixed header appearing exactly once.
+### Added
 
-### Dropped before release
+- **Chụp toàn bộ trang đang mở, hết chiều dài** — cuộn từng màn, chụp, ghép trên `OffscreenCanvas` ở đúng device pixel vật lý của màn hình. Không resample, không downscale (§5, §7).
+- **Không có vệt nối giữa các đoạn** — mỗi tile được đặt theo vị trí cuộn **thực tế** trình duyệt báo về chứ không phải vị trí dự định, và làm tròn đặt ở hai mép tile chứ không ở chiều cao. Làm theo cách hiển nhiên hơn thì mỗi tile lệch dưới 1px, cộng dồn 20 tile thành một đường kẻ mờ vắt ngang ảnh.
+- **Không xin quyền truy cập site nào** — `activeTab`, cấp bởi chính cú bấm nút hoặc `Alt+Shift+S`, là đủ cho việc chụp tab hiện tại (§18). Lúc cài không hiện dòng cảnh báo "Read and change all your data on all websites".
+- **Không mở tab, không điều hướng, không crawl** — trang cần chụp đã ở trước mặt, nên màn đầu tiên được chụp khoảng **0,8 giây** sau cú bấm.
+- **Xử lý header/footer `fixed` và `sticky`** — ẩn từ màn thứ hai trở đi để không lặp lại thành từng dải; riêng `sticky` thì gỡ `position` thay vì ẩn, vì nó thường là nội dung thật (tiêu đề cột trong bảng). Animation, transition và video bị đóng băng; ảnh `loading="lazy"` bị ép load trước. Toàn bộ được hoàn nguyên trong `finally`, kể cả khi chụp lỗi hoặc user bấm Stop.
+- **Ảnh vượt giới hạn canvas của Chrome thì cắt thành nhiều file**, không bao giờ thu nhỏ (§8).
+- **Trang kết quả** — crop và redact (blur hoặc khối đặc, huỷ pixel thật nên file xuất ra không khôi phục được), undo, zoom fit/100%, xuất PNG/JPEG, copy vào clipboard (§11).
+- **Chế độ Save** — ghi thẳng ra Downloads qua offscreen document, rồi xoá khỏi workspace ngay khi file đã nằm trên đĩa (§16).
+- **Ba setting, một nút, một lựa chọn trong popup**: kết quả đi đâu (§12, §13). Mọi thứ còn lại là hằng số trong code.
+- **Không lịch sử, không một request mạng nào, không quyền `debugger`** (§19).
 
-An earlier draft captured the **whole site**: robots.txt + sitemap + link crawling, a queue, a second tab, a thumbnail gallery. Trying it showed why that was wrong — standing on `/docs/a` it went off to `/blog` and `/pricing`, it opened a tab and wandered for minutes, it stalled on `robots.txt` before the first shot, and it forced the `<all_urls>` permission because `captureVisibleTab` accepts nothing weaker. Removing the crawl layer fixed all four at once. Also dropped along the way: the `chrome.debugger` 2×/3× engine, per-capture mode selection, the region/element pickers, the manual scroll-area picker, arrow/box/text annotation, PDF export, and every page-count control.
+### Notes
+
+- **Bản nháp đầu tiên là extension chụp cả site** — dò URL từ `robots.txt`, sitemap và link, một hàng đợi, một tab riêng, một gallery thumbnail. Tầng đó đã bị bỏ hẳn sau khi dùng thử, vì nó hỏng ở bốn chỗ cùng lúc: đứng ở `/docs/a` bấm chụp thì nó đi chụp cả `/blog` và `/pricing`; nó mở một tab lạ rồi đi lang thang trong đó hàng phút; nó đọc `robots.txt` trước khi bấm máy nên có một quãng đứng im giữa cú bấm và tấm ảnh đầu tiên; và nó **buộc phải xin quyền `<all_urls>`**, vì `captureVisibleTab` không nhận host permission nào yếu hơn `<all_urls>` hoặc `activeTab`, mà một lượt crawl thì đi vào những trang user chưa hề bấm nút lên.
+- **Bỏ tầng crawl sửa cả bốn cùng lúc, kể cả cái quyền.** Việc chụp giờ chỉ xảy ra trên đúng tab user vừa invoke, nên `activeTab` phủ hết và extension không xin quyền vào bất kỳ site nào. Với một công cụ chụp màn hình, đó là khác biệt giữa "đọc và thay đổi dữ liệu trên mọi trang web" và không cảnh báo gì.
+- **Đã kiểm chứng end-to-end** trên Chrome for Testing qua CDP với một site giả lập cục bộ: một sự kiện phím `Alt+Shift+S` thật, manifest **không có `host_permissions`**, chụp trang cao 3858px thành 10 màn trong 5,9 giây, màn đầu ở t+0,8s; PNG rút ngược ra từ IndexedDB đủ chiều dài và header `fixed` xuất hiện đúng một lần. Cùng lệnh đó gọi qua CDP mà không có user invocation thì bị Chrome từ chối — đúng là điều `activeTab` cam kết.
+- **Những thứ khác đã bỏ dọc đường**: engine chụp 2×/3× qua `chrome.debugger` (kéo theo banner "… is debugging this browser" và quyền mạnh nhất trong danh sách), các chế độ chụp vùng/phần tử, picker chọn tay vùng cuộn, công cụ chú thích mũi tên/khung/chữ, xuất PDF, và mọi ô nhập số trang.
