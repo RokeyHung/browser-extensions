@@ -129,6 +129,23 @@ if (typeof CookieManager === 'undefined') {
       return { ok: true };
     }
 
+    // Why Chrome refused a cookie. Its own message names the cookie and stops
+    // there, which is no help when the cause is a rule about the name prefix or
+    // an attribute combination. Every case below was reproduced on Chrome 152;
+    // anything not on the list gets Chrome's message unadorned rather than a
+    // guess. Spec §7.2.
+    function rejectionHint(details) {
+      const name = String(details.name || '');
+      if (details.sameSite === 'no_restriction' && !details.secure) return 'SameSite=None requires Secure.';
+      if (name.startsWith('__Secure-') && !details.secure) return 'The __Secure- prefix requires Secure.';
+      if (name.startsWith('__Host-')) {
+        if (!details.secure) return 'The __Host- prefix requires Secure.';
+        if (details.domain) return 'The __Host- prefix requires a host-only cookie, so it cannot carry a domain.';
+        if ((details.path || '/') !== '/') return 'The __Host- prefix requires path "/".';
+      }
+      return '';
+    }
+
     // Create or update one cookie. `previous` is the pre-edit version: when the
     // identity fields changed, the old cookie is removed first so an edit does
     // not leave a duplicate behind.
@@ -154,11 +171,27 @@ if (typeof CookieManager === 'undefined') {
       if (cookie.storeId) details.storeId = cookie.storeId;
       if (cookie.partitionKey) details.partitionKey = cookie.partitionKey;
 
-      const saved = await chrome.cookies.set(details);
+      let saved;
+      try {
+        saved = await chrome.cookies.set(details);
+      } catch (err) {
+        // chrome.cookies.set *rejects* for every malformed cookie — it never
+        // resolves falsy for those. The explanation therefore has to hang off
+        // the catch; hanging it off `!saved`, as this did until 1.0.2, meant it
+        // was unreachable and the user only ever saw Chrome's own sentence,
+        // "Failed to parse or set cookie named X", which says nothing about why.
+        const hint = rejectionHint(details);
+        throw new Error(hint ? `${err.message} ${hint}` : err.message);
+      }
+
       if (!saved) {
-        // The most common rejection: SameSite=None requires Secure.
-        const hint = details.sameSite === 'no_restriction' && !details.secure ? ' (SameSite=None requires Secure)' : '';
-        throw new Error(`Chrome rejected cookie "${cookie.name}"${hint}`);
+        // Reached when Chrome accepted the cookie and dropped it again, which is
+        // what an expiry in the past means. Nothing was rejected, so saying so
+        // would send the user looking for a formatting mistake that is not there.
+        if (details.expirationDate && details.expirationDate * 1000 <= Date.now()) {
+          throw new Error(`Cookie "${cookie.name}" was not kept: its expiry is in the past, so it expired immediately.`);
+        }
+        throw new Error(`Chrome did not store cookie "${cookie.name}".`);
       }
       return toRow(saved);
     }

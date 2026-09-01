@@ -225,7 +225,25 @@ Dùng `chrome.cookies`:
 
 `url` suy ra từ cookie: `${secure ? 'https' : 'http'}://${domain.replace(/^\./,'')}${path}`.
 
-Lưu ý đã biết: `sameSite: "no_restriction"` bắt buộc `secure: true`; nếu không Chrome từ chối set. UI báo lỗi này nguyên văn thay vì im lặng.
+#### Khi Chrome từ chối cookie
+
+`chrome.cookies.set` báo hỏng theo **hai** đường khác nhau, và phải xử lý riêng — đo trên Chrome 152:
+
+| Tình huống                                     | Kết quả            |
+| ---------------------------------------------- | ------------------ |
+| `sameSite: "no_restriction"` + `secure: false` | **reject**         |
+| Tên `__Secure-…` + `secure: false`             | **reject**         |
+| Tên `__Host-…` có `domain`                     | **reject**         |
+| Tên `__Host-…` với `path` khác `/`             | **reject**         |
+| `url` sai scheme (không http/https)            | **reject**         |
+| `expirationDate` nằm trong quá khứ             | **resolve `null`** |
+| Cookie hợp lệ                                  | resolve cookie     |
+
+Thông báo của Chrome ở nhánh reject chỉ là `Failed to parse or set cookie named "X"` — nêu đúng tên cookie rồi dừng, không nói vì sao. UI **phải bổ sung lý do** cho những trường hợp đã biết ở bảng trên; trường hợp ngoài danh sách thì giữ nguyên văn thông báo của Chrome chứ không đoán bừa.
+
+Nhánh `resolve null` **không phải** là từ chối: Chrome nhận cookie rồi xoá ngay vì nó đã hết hạn — đúng ngữ nghĩa cookie. Báo "Chrome rejected" ở đây sẽ đẩy user đi tìm một lỗi định dạng không tồn tại, nên thông báo phải nói đúng chuyện đã xảy ra.
+
+Trước 1.0.2 phần giải thích được gắn vào nhánh `if (!saved)`, tức chỉ chạy khi `set` resolve falsy — mà không tình huống hỏng nào trong bảng trên đi vào đó, trừ cookie hết hạn. Kết quả: dòng `SameSite=None requires Secure` là code chết, còn cookie hết hạn thì bị báo nhầm là bị từ chối.
 
 ### 7.3. IndexedDB
 

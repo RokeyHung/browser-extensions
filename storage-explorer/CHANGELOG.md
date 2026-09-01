@@ -4,6 +4,20 @@ Tất cả thay đổi đáng chú ý của extension **Storage Explorer** đư�
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] - 2026-09-01
+
+### Fixed
+
+- **Lý do cookie bị từ chối không bao giờ tới được UI** — `CookieManager.set()` dựng câu giải thích `(SameSite=None requires Secure)` bên trong `if (!saved)`, tức chỉ chạy khi `chrome.cookies.set` **resolve** với giá trị falsy. Đo trên Chrome 152: mọi cookie sai định dạng đều **reject** chứ không resolve falsy, nên nhánh đó không bao giờ chạy và thứ user thấy chỉ là câu của Chrome — `Failed to parse or set cookie named "X"` — nêu đúng tên cookie rồi dừng, không nói vì sao. Nay lý do được gắn vào nhánh catch.
+- **Cookie hết hạn bị báo nhầm là "bị từ chối"** — đây lại chính là tình huống duy nhất khiến `set` resolve `null`: `expirationDate` nằm trong quá khứ thì Chrome **nhận** cookie rồi xoá ngay, đúng ngữ nghĩa cookie, không từ chối gì cả. Thông báo cũ đẩy user đi tìm một lỗi định dạng không tồn tại. Nay báo đúng: cookie không được giữ vì hạn nằm ở quá khứ.
+- Bổ sung lý do cho 4 tình huống nữa, mỗi cái đều được tái hiện trước khi viết vào code chứ không suy đoán: `__Secure-` thiếu `secure`, `__Host-` có `domain`, `__Host-` với `path` khác `/`, và `SameSite=None` thiếu `Secure`. Tình huống ngoài danh sách giữ nguyên văn thông báo của Chrome thay vì đoán bừa.
+
+### Notes
+
+- Kiểm chứng end-to-end trên Chrome for Testing 152 qua CDP, 186/186 assertion. Storage Explorer không có content script nên phần lớn suite gọi thẳng handler trong service worker rồi kiểm chứng hiệu ứng trong trang; riêng tầng định tuyến message đi qua `chrome.runtime.sendMessage` thật từ trang dashboard.
+- Bảng hành vi của `chrome.cookies.set` (reject với gì, resolve `null` với gì) được ghi vào spec §7.2 — đây là loại kiến thức chỉ có được bằng cách chạy thử, và là thứ khiến bản vá cũ nhắm sai nhánh.
+- Đã phủ thêm: toàn bộ nhánh `describe()` của IndexedDB (Blob, Date, ArrayBuffer, TypedArray, Map, Set, BigInt), snapshot merge/replace/parts/origin-mismatch/reload, 4 nhánh validate của import, và đối chiếu hai chiều 23 message type với spec §10.
+
 ## [1.0.1] - 2026-08-30
 
 ### Fixed

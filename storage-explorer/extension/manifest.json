@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Storage Explorer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Inspect and edit localStorage, sessionStorage, cookies and IndexedDB of the current site, and save storage snapshots you can restore",
   "permissions": ["tabs", "scripting", "cookies", "storage", "unlimitedStorage"],
   "host_permissions": ["http://*/*", "https://*/*"],
