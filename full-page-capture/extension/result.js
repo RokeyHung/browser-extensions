@@ -307,6 +307,11 @@ function bindSelection(canvas) {
   canvas.addEventListener('mousedown', (event) => {
     // Text is placed by a click, not dragged out like a rectangle.
     if (viewer.tool === 'text') {
+      // Without this, mousedown's default action moves focus to the canvas
+      // straight after this handler, the fresh text box blurs, and its blur
+      // handler closes it again — the box appears and vanishes in the same
+      // click, so nothing can ever be typed into it.
+      event.preventDefault();
       openTextEditor(canvas, toImage(event));
       return;
     }
@@ -374,11 +379,16 @@ function openTextEditor(canvas, at) {
     if (event.key === 'Enter') commit();
     else if (event.key === 'Escape') cancel();
   });
-  input.addEventListener('blur', commit);
-
   app.querySelector('.stage').appendChild(input);
   viewer.editor = input;
   input.focus();
+
+  // The blur listener goes on only once the box actually holds focus. Attaching
+  // it before that lets any focus churn during the opening click close the box
+  // immediately — the same failure as above, arriving by a different route.
+  requestAnimationFrame(() => {
+    if (viewer.editor === input) input.addEventListener('blur', commit);
+  });
 }
 
 function closeTextEditor() {
