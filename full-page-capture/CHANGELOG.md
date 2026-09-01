@@ -4,6 +4,23 @@ Tất cả thay đổi đáng chú ý của extension **Full Page Capture** đư
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-08-31
+
+### Added
+
+- **Công cụ Text** — bấm một điểm trên ảnh, ô nhập hiện ngay tại đó, gõ rồi `Enter` để chốt (`Esc` huỷ). Ô nhập nằm đè lên canvas với cùng font và cùng tỉ lệ hiển thị, nên chữ không nhảy chỗ lúc chốt. Màu chọn ở ô màu cạnh nút, mặc định đỏ.
+- Cỡ chữ tính theo **CSS pixel của trang gốc nhân với `meta.scale`**, nên nhãn trên ảnh 1× và ảnh 2× trông to như nhau — viết thẳng bằng pixel ảnh thì trên máy retina chữ ra bé bằng nửa. Chữ vẽ kèm viền trắng mảnh để đọc được trên cả nền tối mà không cần hộp nền.
+- Text đi cùng stack lệnh như crop và redact: `Undo` gỡ được, `Reset` xoá sạch, và blob gốc không bị đụng tới.
+
+### Fixed
+
+- **Thanh cuộn ngang nằm ngoài tầm với** — trang kết quả để `body` cuộn, còn stage thì cao bằng cả ảnh. Với ảnh rộng hơn màn hình, thanh cuộn ngang vì thế nằm ở đáy một element cao hàng chục nghìn pixel: muốn kéo ngang phải cuộn xuống hết ảnh trước. Nay `html, body` cao đúng 100% và `overflow: hidden`, stage là `flex: 1` với `overflow: auto` — cả hai thanh cuộn luôn nằm ở mép cửa sổ.
+- **Fit không fit thật** — bề rộng khả dụng tính bằng `clientWidth - 32` trong khi padding thực tế là 20px mỗi bên, tức lạc quan 8px, đủ để sinh thanh cuộn ngang dưới tấm ảnh vừa hứa là đã vừa khít. Nay padding đọc từ computed style, và stage đặt `scrollbar-gutter: stable` để chừa sẵn chỗ cho thanh cuộn dọc — nếu không, Fit đo được một bề rộng mà ngay sau đó thanh cuộn lấy mất.
+
+### Notes
+
+- Kiểm chứng trên Chrome for Testing chạy `--force-device-scale-factor=2`, tức đúng tình huống màn retina nơi ảnh chụp rộng gấp đôi cửa sổ: ảnh 1970px trong stage 985px, Fit thu về 945px và `scrollWidth === clientWidth` (không còn tràn ngang); ở 100% thì tràn ngang nằm **trong** stage, còn trang vẫn không cuộn. Text ở 2× tự lên cỡ 36 đúng như thiết kế.
+
 ## [1.0.0] - Initial release
 
 ### Added

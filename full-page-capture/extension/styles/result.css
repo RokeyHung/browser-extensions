@@ -6,12 +6,28 @@
   box-sizing: border-box;
 }
 
+/* The page itself never scrolls: it is a column that exactly fills the window,
+   and only the stage inside it scrolls. Letting the body scroll instead puts the
+   image's horizontal scrollbar at the bottom of a 17 000px-tall element, so
+   reaching it means scrolling to the end of the screenshot first. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   color: #1f2937;
   background: #f3f4f6;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 a {
@@ -149,8 +165,16 @@ a {
 }
 
 .stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
   padding: 20px;
   overflow: auto;
+  /* Reserve the vertical scrollbar's width even before it appears. Without it,
+     Fit measures a width that the scrollbar then takes away, and the image ends
+     up a few pixels too wide to fit — which is exactly what "Fit" promises not
+     to happen. */
+  scrollbar-gutter: stable;
 }
 
 .stage canvas {
@@ -159,6 +183,34 @@ a {
   background: #fff;
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.1);
   cursor: crosshair;
+}
+
+/* The live text box, positioned over the canvas so what you type sits exactly
+   where it will be drawn. */
+.text-input {
+  position: absolute;
+  z-index: 2;
+  margin: 0;
+  padding: 0 2px;
+  border: 1px dashed #5546cb;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.85);
+  color: inherit;
+  font-family: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  outline: none;
+  white-space: pre;
+}
+
+.color {
+  width: 30px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
 }
 
 .warnings {

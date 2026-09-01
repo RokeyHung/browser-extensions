@@ -491,22 +491,31 @@ Mở bằng `result.html?page=<id>`. Một màn hình, không có gallery — ch
 
 ```text
 ┌─ header: ▣ | tiêu đề trang + link URL gốc + 2880 × 17260 ──────────┐
-├─ toolbar: [Crop] [Redact ▾] [Undo] [Reset] | Zoom [Fit|100%|−+] |  │
-│                                      [Copy] [PNG] [JPEG]           │
-├─ canvas viewport (scroll cả 2 chiều) ──────────────────────────────┤
+├─ toolbar: [Crop] [Redact ▾] [Text] [■] [Undo] [Reset] |            │
+│                    Zoom [Fit|100%] | [Copy] [PNG] [JPEG]           │
+├─ stage: canvas, cuộn cả 2 chiều ───────────────────────────────────┤
 └─ footer: cảnh báo (nếu có) ────────────────────────────────────────┘
 ```
 
 Vùng xem hiển thị ảnh trên `<canvas>` với `image-rendering: auto` khi zoom < 100%, `pixelated` khi zoom > 100% (để soi pixel không bị nội suy).
 
+**Trang không bao giờ tự cuộn — chỉ stage cuộn.** `html, body` cao đúng 100% và `overflow: hidden`; stage là `flex: 1` với `overflow: auto`. Nếu để body cuộn thì thanh cuộn ngang của ảnh nằm ở đáy một element cao 17 000px, tức muốn với tới nó phải cuộn xuống hết ảnh trước — với một ảnh rộng hơn màn hình thì đó là lỗi dùng được hay không, chứ không phải chuyện thẩm mỹ.
+
+**Fit phải fit thật.** Bề rộng khả dụng lấy bằng `stage.clientWidth` trừ padding **đọc từ computed style**, không phải một con số gõ tay: lệch 8px là đủ để sinh thanh cuộn ngang dưới một tấm ảnh vừa hứa là đã fit. Stage đặt `scrollbar-gutter: stable` để chừa sẵn chỗ cho thanh cuộn dọc — nếu không, Fit đo được một bề rộng mà ngay sau đó thanh cuộn lấy mất.
+
 ### 11.2. Công cụ
 
-| Công cụ    | Hành vi                                                                                     |
-| ---------- | ------------------------------------------------------------------------------------------- |
-| **Crop**   | Kéo chọn vùng (hiện `W × H` device pixel), thả chuột là áp dụng luôn — `Ctrl+Z` để lùi lại. |
-| **Redact** | Hai kiểu: `Blur` và `Solid` (khối đặc). Kéo để chọn vùng.                                   |
+| Công cụ    | Hành vi                                                                                               |
+| ---------- | ----------------------------------------------------------------------------------------------------- |
+| **Crop**   | Kéo chọn vùng (hiện `W × H` device pixel), thả chuột là áp dụng luôn — `Ctrl+Z` để lùi lại.           |
+| **Redact** | Hai kiểu: `Blur` và `Solid` (khối đặc). Kéo để chọn vùng.                                             |
+| **Text**   | Bấm một điểm → hiện ô nhập ngay tại đó, gõ, `Enter` để chốt, `Esc` để huỷ. Màu chọn ở ô màu cạnh nút. |
 
-Chỉ hai công cụ. Bản nháp trước còn có `Arrow`, `Box`, `Text` — bỏ, vì thứ user thật sự cần trước khi chia sẻ một ảnh chụp màn hình là che thông tin nhạy cảm, không phải vẽ lên nó.
+`Arrow` và `Box` vẫn không có: mũi tên và khung là thứ vẽ cho đẹp, còn chữ thì để chỉ rõ _cái gì_ — khác nhau về mục đích chứ không chỉ về công cụ.
+
+Cỡ chữ tính bằng **CSS pixel của trang gốc rồi nhân với `meta.scale`**, nên nhãn trên ảnh 1× và ảnh 2× trông to như nhau. Viết thẳng bằng pixel ảnh thì trên máy retina chữ ra bé bằng nửa. Chữ được vẽ kèm viền trắng mảnh để đọc được cả trên nền tối mà không cần hộp nền phía sau.
+
+Ô nhập nằm đè lên canvas đúng vị trí sẽ vẽ, cùng font và cùng tỉ lệ hiển thị, nên lúc chốt không có gì nhảy chỗ. Nó tự đóng khi đổi zoom, đổi part hoặc resize cửa sổ — ba thứ làm vị trí và cỡ chữ của nó không còn đúng nữa.
 
 Mọi thao tác ghi vào **stack lệnh** (không phá blob gốc). `Undo` (`Ctrl+Z`) pop stack và vẽ lại từ blob gốc. `Reset` xoá sạch stack. Crop đổi hệ toạ độ, nên các lệnh thêm sau đó nằm trong hệ đã crop — replay từ đầu giữ đúng thứ tự nên không lệch.
 
@@ -780,7 +789,7 @@ Hình: máy ảnh compact, thân tím `#5546CB`, mặt vàng `#FDCD60`, ống k�
 - Chụp một vùng, một phần tử, hay chỉ phần nhìn thấy (§3.2).
 - Chụp 2×/3× qua `chrome.debugger` — **đã bỏ hẳn** (§2.6).
 - Chọn tay vùng cuộn khi tự dò sai (§2.5).
-- Chú thích ảnh: mũi tên, khung, chữ (§11.2).
+- Chú thích bằng mũi tên và khung (§11.2).
 - Xuất PDF (§11.3).
 - Ghép theo cả chiều ngang (trang rộng hơn viewport).
 - Lịch sử ảnh đã chụp.
