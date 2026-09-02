@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Media Saver for Facebook — History</title>
+    <link rel="stylesheet" href="styles/popup.css" />
+    <link rel="stylesheet" href="styles/dashboard.css" />
+  </head>
+  <body>
+    <div class="header">
+      <img class="header-logo" src="icons/icon48.png" alt="" />
+      <h1>Download history</h1>
+    </div>
+
+    <main class="page">
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Search file name, author or post URL" spellcheck="false" />
+        <span class="count" id="count"></span>
+        <button class="secondary danger" id="clear" type="button">Clear all</button>
+      </div>
+
+      <p class="row-hint">
+        Metadata only: this list records what was saved and where it came from, never the files themselves. Deleting an entry does not touch the file
+        in your Downloads folder.
+      </p>
+
+      <div id="list"></div>
+
+      <div class="pager">
+        <button class="secondary" id="prev" type="button">Previous</button>
+        <span class="count" id="range"></span>
+        <button class="secondary" id="next" type="button">Next</button>
+      </div>
+    </main>
+
+    <div class="saved-flash" id="flash" hidden></div>
+
+    <script src="dashboard.js"></script>
+  </body>
+</html>

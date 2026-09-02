@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A monorepo of seven independent Chrome MV3 extensions. There is **no build step, no `package.json`, no `node_modules`** — on purpose. What lives in `<extension>/extension/` is exactly what the browser loads. Never introduce a bundler, a framework, or a dependency install as part of a feature; if something needs tooling, it goes in `Makefile` + `scripts/` and runs through `npx`.
+A monorepo of eight independent Chrome MV3 extensions. There is **no build step, no `package.json`, no `node_modules`** — on purpose. What lives in `<extension>/extension/` is exactly what the browser loads. Never introduce a bundler, a framework, or a dependency install as part of a feature; if something needs tooling, it goes in `Makefile` + `scripts/` and runs through `npx`.
 
-Extensions: [block-elements-webpage/](block-elements-webpage/) (Element Filter), [clean-site-data/](clean-site-data/), [form-fill-profiles/](form-fill-profiles/), [full-page-capture/](full-page-capture/), [popup-redirect-guard/](popup-redirect-guard/), [site-path-discovery/](site-path-discovery/), [storage-explorer/](storage-explorer/).
+Extensions: [block-elements-webpage/](block-elements-webpage/) (Element Filter), [clean-site-data/](clean-site-data/), [facebook-media-download/](facebook-media-download/) (Media Saver for Facebook), [form-fill-profiles/](form-fill-profiles/), [full-page-capture/](full-page-capture/), [popup-redirect-guard/](popup-redirect-guard/), [site-path-discovery/](site-path-discovery/), [storage-explorer/](storage-explorer/).
 
 ## Commands
 

@@ -1,0 +1,182 @@
+/* popup.css — base styles for every page, plus the popup itself (spec §11). */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: #1f2937;
+  background: #fff;
+}
+
+body.popup-body {
+  width: 320px;
+}
+
+/* ── Header ── */
+.header {
+  background: linear-gradient(135deg, #0866ff, #4d9bff);
+  color: #fff;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* The icon sits on a light plate: the artwork is mostly blue and would vanish
+   into the gradient behind it. */
+.header-logo {
+  width: 24px;
+  height: 24px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 6px;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.content {
+  padding: 16px;
+}
+
+.site {
+  font-weight: 600;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* ── Stat rows ── */
+.stats {
+  margin: 14px 0 16px;
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  font-size: 13px;
+}
+
+.stat + .stat {
+  border-top: 1px solid #eef2f7;
+}
+
+.stat-label {
+  color: #6b7280;
+}
+
+.stat-value {
+  font-weight: 600;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-value.is-zero {
+  color: #b45309;
+}
+
+/* ── Buttons ── */
+.primary {
+  display: block;
+  width: 100%;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: #0866ff;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary:hover:not(:disabled) {
+  background: #0757d9;
+}
+
+.primary:disabled {
+  background: #b9d3ff;
+  cursor: default;
+}
+
+.secondary {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  color: #374151;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+}
+
+.secondary:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
+.secondary.danger {
+  color: #b42318;
+  border-color: #fecaca;
+}
+
+.secondary.danger:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.button-row {
+  display: flex;
+  gap: 8px;
+}
+
+.button-row .secondary {
+  margin-top: 0;
+}
+
+/* ── Unsupported ── */
+.unsupported {
+  margin: 0 0 6px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.unsupported-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.footnote {
+  margin: 14px 0 0;
+  font-size: 11px;
+  color: #9ca3af;
+  text-align: center;
+}

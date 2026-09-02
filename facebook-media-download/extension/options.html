@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Media Saver for Facebook — Options</title>
+    <link rel="stylesheet" href="styles/popup.css" />
+    <link rel="stylesheet" href="styles/options.css" />
+  </head>
+  <body>
+    <div class="header">
+      <img class="header-logo" src="icons/icon48.png" alt="" />
+      <h1>Media Saver for Facebook</h1>
+    </div>
+
+    <main class="page">
+      <section class="card">
+        <h2>File names</h2>
+
+        <label class="row" for="pattern">
+          <span class="row-label">Filename pattern</span>
+          <input id="pattern" type="text" spellcheck="false" />
+        </label>
+        <p class="preview" id="preview"></p>
+        <p class="tokens" id="tokens"></p>
+
+        <label class="row" for="subfolder">
+          <span class="row-label">Subfolder in Downloads</span>
+          <input id="subfolder" type="text" spellcheck="false" placeholder="e.g. Facebook/{handle}" />
+        </label>
+      </section>
+
+      <section class="card">
+        <h2>Video</h2>
+
+        <div class="row">
+          <span class="row-label">Quality</span>
+          <div class="radios">
+            <label><input type="radio" name="videoQuality" value="highest" /> Highest available</label>
+            <label><input type="radio" name="videoQuality" value="ask" /> Ask each time</label>
+          </div>
+        </div>
+
+        <label class="row toggle-row" for="downloadPoster">
+          <span>
+            <span class="row-label">Also save the video thumbnail</span>
+            <span class="row-hint">Writes the poster image as a separate .jpg</span>
+          </span>
+          <input id="downloadPoster" type="checkbox" />
+        </label>
+      </section>
+
+      <section class="card">
+        <h2>History</h2>
+
+        <label class="row toggle-row" for="markDownloaded">
+          <span>
+            <span class="row-label">Mark media you already saved</span>
+            <span class="row-hint">A green check on photos and videos that are in the history</span>
+          </span>
+          <input id="markDownloaded" type="checkbox" />
+        </label>
+
+        <label class="row toggle-row" for="notifyOnComplete">
+          <span>
+            <span class="row-label">Notify when a file is saved</span>
+            <span class="row-hint">Off by default — the browser's download bar already says so</span>
+          </span>
+          <input id="notifyOnComplete" type="checkbox" />
+        </label>
+
+        <label class="row" for="historyLimit">
+          <span class="row-label">Keep</span>
+          <select id="historyLimit">
+            <option value="200">200 entries</option>
+            <option value="1000">1000 entries</option>
+            <option value="5000">5000 entries</option>
+            <option value="0">Don't keep history</option>
+          </select>
+        </label>
+        <p class="row-hint" id="historyNote"></p>
+      </section>
+
+      <section class="card">
+        <h2>Diagnostics</h2>
+        <p class="row-hint">
+          If the buttons stop appearing, Facebook has probably changed its markup. Run this on an open Facebook tab and paste the result into a bug
+          report.
+        </p>
+        <button class="secondary" id="runDiagnostics" type="button">Run on the current Facebook tab</button>
+        <pre class="report" id="report" hidden></pre>
+      </section>
+
+      <section class="card">
+        <div class="button-row">
+          <button class="secondary danger" id="clearHistory" type="button">Clear history</button>
+          <button class="secondary" id="reset" type="button">Reset to defaults</button>
+        </div>
+        <p class="footnote">No data leaves your computer.</p>
+      </section>
+    </main>
+
+    <div class="saved-flash" id="flash" hidden>Saved</div>
+
+    <script src="modules/settings.js"></script>
+    <script src="modules/filename.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>
