@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A monorepo of seven independent Chrome MV3 extensions. There is **no build step, no `package.json`, no `node_modules`** — on purpose. What lives in `<extension>/extension/` is exactly what the browser loads. Never introduce a bundler, a framework, or a dependency install as part of a feature; if something needs tooling, it goes in `Makefile` + `scripts/` and runs through `npx`.
+A monorepo of six independent Chrome MV3 extensions. There is **no build step, no `package.json`, no `node_modules`** — on purpose. What lives in `<extension>/extension/` is exactly what the browser loads. Never introduce a bundler, a framework, or a dependency install as part of a feature; if something needs tooling, it goes in `Makefile` + `scripts/` and runs through `npx`.
 
-Extensions: [block-elements-webpage/](block-elements-webpage/) (Element Filter), [clean-site-data/](clean-site-data/), [form-fill-profiles/](form-fill-profiles/), [full-page-capture/](full-page-capture/), [popup-redirect-guard/](popup-redirect-guard/), [site-path-discovery/](site-path-discovery/), [storage-explorer/](storage-explorer/).
+Extensions: [block-elements-webpage/](block-elements-webpage/) (Element Filter), [clean-site-data/](clean-site-data/), [form-fill-profiles/](form-fill-profiles/), [full-page-capture/](full-page-capture/), [popup-redirect-guard/](popup-redirect-guard/), [storage-explorer/](storage-explorer/).
 
 ## Commands
 
@@ -58,7 +58,7 @@ if (typeof SnapshotStore === 'undefined') {
 
 ## shared/domain-suffix.js
 
-Registrable-domain (eTLD+1) derivation is security-relevant: getting it wrong widens cookie clearing, autofill scope and same-site checks to unrelated sites. Extensions cannot load files outside their own folder, so the block is **copied** into six destinations listed in [scripts/sync-domain-suffix.mjs](scripts/sync-domain-suffix.mjs).
+Registrable-domain (eTLD+1) derivation is security-relevant: getting it wrong widens cookie clearing, autofill scope and same-site checks to unrelated sites. Extensions cannot load files outside their own folder, so the block is **copied** into five destinations listed in [scripts/sync-domain-suffix.mjs](scripts/sync-domain-suffix.mjs).
 
 Edit [shared/domain-suffix.js](shared/domain-suffix.js) only — between the `>>> shared:domain-suffix` / `<<< shared:domain-suffix` markers — then `make sync-domain-suffix`. Never edit a copy; `make check` fails on drift.
 

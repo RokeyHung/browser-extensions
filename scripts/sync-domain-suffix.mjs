@@ -25,7 +25,6 @@ const TARGETS = [
   'form-fill-profiles/extension/modules/form-matcher.js',
   'popup-redirect-guard/extension/injected-guard.js',
   'popup-redirect-guard/extension/modules/domain-matcher.js',
-  'site-path-discovery/extension/modules/url-normalizer.js',
   'storage-explorer/extension/modules/cookie-manager.js',
 ];
 

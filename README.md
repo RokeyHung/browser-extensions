@@ -1,20 +1,19 @@
 # Browser Extensions
 
-Bộ bảy extension Chrome (Manifest V3) viết bằng JavaScript thuần — không build step, không framework, không dependency. Thư mục `extension/` của mỗi cái chính là thứ trình duyệt nạp vào.
+Bộ sáu extension Chrome (Manifest V3) viết bằng JavaScript thuần — không build step, không framework, không dependency. Thư mục `extension/` của mỗi cái chính là thứ trình duyệt nạp vào.
 
 Mỗi extension làm đúng một việc, chạy hoàn toàn cục bộ: không có backend, không gửi dữ liệu đi đâu. Rule, profile, snapshot đều nằm trong `chrome.storage` của chính trình duyệt.
 
 ## Danh sách
 
-| Extension                          | Thư mục                                            | Làm gì                                                     |
-| ---------------------------------- | -------------------------------------------------- | ---------------------------------------------------------- |
-| **Element Filter** `1.1.0`         | [block-elements-webpage/](block-elements-webpage/) | Ẩn vĩnh viễn phần tử phiền phức trên một website           |
-| **Clean Site Data** `1.3.0`        | [clean-site-data/](clean-site-data/)               | Xoá sạch dữ liệu cục bộ của site đang mở                   |
-| **Form Fill Profiles** `1.0.1`     | [form-fill-profiles/](form-fill-profiles/)         | Lưu bộ câu trả lời cho form và điền lại bằng một cú bấm    |
-| **Full Page Capture** `1.2.2`      | [full-page-capture/](full-page-capture/)           | Chụp trọn trang, hết chiều dài, đúng độ phân giải màn hình |
-| **Popup Redirect Guard** `1.1.0`   | [popup-redirect-guard/](popup-redirect-guard/)     | Chặn site tự mở tab, popup, pop-under và redirect          |
-| **Website Path Discovery** `1.0.1` | [site-path-discovery/](site-path-discovery/)       | Dò ra path, API endpoint và asset của website đang xem     |
-| **Storage Explorer** `1.0.1`       | [storage-explorer/](storage-explorer/)             | Xem, sửa, snapshot toàn bộ client-side storage             |
+| Extension                        | Thư mục                                            | Làm gì                                                     |
+| -------------------------------- | -------------------------------------------------- | ---------------------------------------------------------- |
+| **Element Filter** `1.1.0`       | [block-elements-webpage/](block-elements-webpage/) | Ẩn vĩnh viễn phần tử phiền phức trên một website           |
+| **Clean Site Data** `1.3.0`      | [clean-site-data/](clean-site-data/)               | Xoá sạch dữ liệu cục bộ của site đang mở                   |
+| **Form Fill Profiles** `1.0.1`   | [form-fill-profiles/](form-fill-profiles/)         | Lưu bộ câu trả lời cho form và điền lại bằng một cú bấm    |
+| **Full Page Capture** `1.2.2`    | [full-page-capture/](full-page-capture/)           | Chụp trọn trang, hết chiều dài, đúng độ phân giải màn hình |
+| **Popup Redirect Guard** `1.1.0` | [popup-redirect-guard/](popup-redirect-guard/)     | Chặn site tự mở tab, popup, pop-under và redirect          |
+| **Storage Explorer** `1.0.1`     | [storage-explorer/](storage-explorer/)             | Xem, sửa, snapshot toàn bộ client-side storage             |
 
 ## Cài đặt
 
