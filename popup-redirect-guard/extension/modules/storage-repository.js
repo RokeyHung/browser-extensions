@@ -52,9 +52,28 @@
   }
 
   // ── Site protection rules ────────────────────────────────────────────────
+
+  // A rule holds only the toggles the user deliberately changed for that site.
+  // getContext merges it over the global settings, so a rule that carries a full
+  // copy of the defaults pins every toggle and the global Settings page — the
+  // only settings UI there is — stops having any effect on protected sites.
+  //
+  // Rules written before 1.1.1 do carry that full copy, so strip the keys that
+  // still equal the default on the way out. A value the user actually changed
+  // differs from the default and is kept; one that matches it is
+  // indistinguishable from "never touched" and is better handed back to global.
+  function stripDefaultRuleSettings(rule) {
+    if (!rule || !rule.settings) return rule;
+    const overrides = {};
+    for (const [key, value] of Object.entries(rule.settings)) {
+      if (!(key in DEFAULT_RULE_SETTINGS) || value !== DEFAULT_RULE_SETTINGS[key]) overrides[key] = value;
+    }
+    return { ...rule, settings: overrides };
+  }
+
   async function getRules() {
     const stored = await chrome.storage.local.get(KEYS.rules);
-    return stored[KEYS.rules] || [];
+    return (stored[KEYS.rules] || []).map(stripDefaultRuleSettings);
   }
 
   async function createRule({ sitePattern, mode, includeRoot, settings }) {
@@ -74,7 +93,9 @@
       sitePattern,
       mode: mode || 'strict',
       includeRoot: includeRoot !== false,
-      settings: { ...DEFAULT_RULE_SETTINGS, ...(settings || {}) },
+      // Only what the caller explicitly overrode; everything else follows the
+      // global settings so the Settings page keeps working. See getRules().
+      settings: { ...(settings || {}) },
       blockedCount: 0,
       createdAt: now,
       updatedAt: now,

@@ -245,6 +245,10 @@ Default mode:
 ( ) Strict
 ```
 
+Đây là setting **global**, và phải thực sự có hiệu lực trên mọi site đang được bảo vệ. Một rule chỉ lưu **những toggle user cố ý đổi riêng cho site đó**; `getContext` merge `{ ...global, ...rule.settings }` nên phần rule không đặt sẽ theo global.
+
+Trước 1.1.1 `createRule` chép nguyên `DEFAULT_RULE_SETTINGS` vào mọi rule, nên rule ghim cứng mọi toggle và trang Settings — UI setting duy nhất extension có — **không đổi được gì** trên site đã bật bảo vệ. Rule cũ vẫn còn bản chép đó, nên `getRules()` lọc bỏ những key vẫn bằng giá trị mặc định khi đọc ra: giá trị user thực sự đổi thì khác mặc định nên được giữ, còn giá trị trùng mặc định thì không phân biệt được với "chưa từng đụng tới" và tốt hơn là trả về cho global quyết định.
+
 ## 6. Protection modes
 
 ## 6.1. Normal mode
@@ -470,22 +474,47 @@ window.top.location = 'https://ads.com';
 
 Extension cần detect navigation external sau click hoặc script.
 
-Có 2 lớp:
+### Lớp content script: **không** override được `location`
 
-### Lớp content script
+Mọi thành viên của `Location` là `[LegacyUnforgeable]` — thuộc tính **own, không ghi được, không cấu hình lại được** của chính instance, đúng là để một trang không thể tự nói dối mình đang ở đâu. Đo trên Chrome 152:
 
-Inject guard để override:
-
-```js
-location.assign;
-location.replace;
+```text
+Object.getOwnPropertyDescriptor(location, 'assign')
+  → { writable: false, configurable: false, enumerable: true }
+Object.defineProperty(location, 'assign', …)   → TypeError
+location.assign = fn                            → TypeError
+vá Location.prototype                           → TypeError
 ```
 
-Một số property như `location.href` khó override ổn định trên mọi browser, nên cần thêm lớp background.
+Nên `injected-guard.js` chỉ override `window.open`, và **không** đụng tới `location`. Trước 1.1.1 nó có thử: đọc method từ `Object.getPrototypeOf(location)` — nơi method không hề nằm ở đó — nên `if (typeof original !== 'function') return` thoát ra trước cả cái `defineProperty` lẽ ra sẽ ném lỗi. Kết quả là không vá được gì, không có lỗi nào, và không dấu hiệu nào cho thấy lớp chặn redirect đang rỗng.
+
+Chặn redirect vì vậy **hoàn toàn nằm ở lớp background**.
 
 ### Lớp background
 
-Dùng navigation event để detect tab hiện tại sắp chuyển sang external domain.
+Dùng `chrome.webNavigation.onCommitted` để phát hiện tab vừa chuyển sang external domain.
+
+**Không dựa vào `transitionQualifiers`.** Chrome không gắn nhãn mọi scripted redirect. Đo trên trang tự redirect 600ms sau khi load, không có tương tác nào:
+
+| Cách redirect      | `transitionQualifiers` |
+| ------------------ | ---------------------- |
+| `location.replace` | `["client_redirect"]`  |
+| `location.assign`  | `[]`                   |
+| `location.href =`  | `[]`                   |
+
+Đòi `client_redirect` — như bản trước 1.1.1 — cho lọt thẳng 2 trong 3 cách. Thứ thực sự phân biệt "script redirect" với "user bấm link" là **user vừa tương tác hay chưa**: content script báo mỗi `pointerdown`/`keydown` (throttle 250ms) về worker, và navigation không có gesture trong `USER_GESTURE_WINDOW_MS` (1500ms) được coi là của script.
+
+State theo tab (`prevUrl`, opener, thời điểm gesture) nằm trong **`chrome.storage.session`**, không phải `Map` trong bộ nhớ: MV3 tắt worker khi rảnh, mà chính navigation cần kiểm tra lại thường là thứ đánh thức worker — để trong `Map` thì sau mỗi lần worker ngủ, navigation đầu tiên của tab không có `prevUrl` để so và được cho qua.
+
+Mọi lượt ghi vào `storage.session` đi qua **một hàng đợi promise**: đó là read-modify-write trên cùng một object, và các event gọi nó chồng nhau (đóng tab cũ xoá entry trong khi tab mới ghi URL đầu tiên, cùng key), nên không nối tiếp thì một lượt ghi bị mất và tab đó mất `prevUrl`.
+
+`prevUrl` được ghi ở **mọi** top-frame commit, trước khi chọn nhánh xử lý. Ghi riêng trong nhánh same-tab khiến tab nào có commit đầu đi xuống nhánh popup thì không bao giờ có `prevUrl` — đúng vào tab mà ad script mở ra rồi redirect ngay sau đó.
+
+#### Giới hạn: không huỷ được navigation đã commit
+
+MV3 không có cách chặn một navigation đã commit (không dùng `declarativeNetRequest`). Cách duy nhất là **đưa tab quay lại** URL trước đó — mà việc đó chạy lại trang, và trang nào redirect ngay khi load thì sẽ redirect tiếp. Đo được là vòng lặp khôi phục/redirect vô hạn làm tab nhấp nháy liên tục.
+
+Nên có **cầu dao**: tối đa `RESTORE_LIMIT` (3) lần khôi phục mỗi tab trong `RESTORE_WINDOW_MS` (10s). Quá ngưỡng thì thôi khôi phục, để tab đứng yên, và ghi log với `action: 'gave-up'` kèm lý do `… (kept redirecting; stopped restoring)`. Với trang redirect **mỗi lần load**, kết cục là redirect thắng — đây là giới hạn thật của MV3, không phải thứ che giấu được: người dùng vẫn thấy toast và log giải thích chuyện gì đã xảy ra. Trang chỉ redirect một lần thì được khôi phục và ở yên.
 
 Nếu current protected site là:
 

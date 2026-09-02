@@ -4,6 +4,25 @@ Tất cả thay đổi đáng chú ý của extension **Popup Redirect Guard** �
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] - 2026-09-02
+
+### Fixed
+
+- **Chặn scripted redirect chưa bao giờ hoạt động** — nặng nhất, vì đó là một nửa lý do tồn tại của extension. `injected-guard.js` đọc `assign`/`replace` từ `Object.getPrototypeOf(location)`, nơi chúng **không** nằm: mọi thành viên của `Location` là `[LegacyUnforgeable]`, tức thuộc tính own của chính instance. Nên `if (typeof original !== 'function') return` thoát ra trước cả `defineProperty` lẽ ra sẽ ném lỗi — không vá được gì, không lỗi nào, không dấu hiệu nào. Đo: trang tự redirect 600ms sau load bằng `location.assign` / `location.replace` / `location.href` đều sang được site ngoài, block log rỗng.
+- Trang **không thể** vá `location`, đã kiểm chứng từng đường: descriptor là `{ writable: false, configurable: false }`, `defineProperty` / gán trực tiếp / vá `Location.prototype` đều ném `TypeError`. Nên phần vá đó bị gỡ hẳn và thay bằng ghi chú giải thích, thay vì để lại thứ trông như đang bảo vệ.
+- **Lớp background đòi `client_redirect` nên bỏ lọt 2/3 cách redirect** — Chrome chỉ gắn nhãn đó cho `location.replace`; `location.assign` và `location.href` ra `[]`. Nay không dùng qualifier nữa: content script báo mỗi `pointerdown`/`keydown` (throttle 250ms), và navigation không có gesture trong 1500ms được coi là của script. Đây mới là thứ phân biệt được "script redirect" với "user bấm link", vì `transitionType` của cả hai đều là `link`.
+- **State theo tab bốc hơi khi service worker ngủ** — `openerMap` và `lastTopUrl` là `Map` trong bộ nhớ, mà MV3 tắt worker khi rảnh và chính navigation cần kiểm tra lại thường là thứ đánh thức nó. Sau mỗi lần worker ngủ, navigation đầu tiên của tab không có `prevUrl` để so và được cho qua. Nay nằm trong `chrome.storage.session`.
+- **Ghi state theo tab bị mất do đua** — `Session.patch` là read-modify-write trên một object trong `chrome.storage.session`, mà các event gọi nó chồng lên nhau liên tục: đóng tab cũ xoá entry của nó **cùng key** với lúc tab mới ghi URL đầu tiên. Không nối tiếp thì một trong hai lượt ghi biến mất — đo được là tab có `prevUrl` rỗng, nên redirect ngay sau đó lọt. Nay mọi lượt ghi đi qua một hàng đợi promise.
+- **Tab do tab khác mở không bao giờ có `prevUrl`** — commit đầu đi xuống nhánh popup rồi `return`, nên phần ghi sổ trong nhánh same-tab không chạy. Đúng vào tab mà ad script mở ra rồi redirect ngay sau đó. Nay `prevUrl` được ghi ở **mọi** top-frame commit, trước khi chọn nhánh.
+- **Toggle trong trang Settings không có tác dụng với site đã bật bảo vệ** — `createRule` chép nguyên `DEFAULT_RULE_SETTINGS` vào mọi rule, còn `getContext` cho `rule.settings` ghi đè global. Mà mọi site được bảo vệ đều có rule, và options page chỉ sửa được setting global — nên UI setting duy nhất của extension không đổi được gì. Đo bằng cặp assertion: tắt `blockWindowOpen` ở global thì vẫn bị chặn, tắt trên chính rule thì mới cho qua. Nay rule chỉ giữ **override user cố ý đặt**, và `getRules()` lọc bỏ những key vẫn bằng mặc định để rule cũ trả quyền lại cho global.
+
+### Notes
+
+- **Giới hạn thật, không che giấu**: MV3 không huỷ được navigation đã commit (không dùng `declarativeNetRequest`), nên cách duy nhất là đưa tab quay lại — mà việc đó chạy lại trang, và trang redirect ngay khi load sẽ redirect tiếp. Đo được là vòng lặp vô hạn làm tab nhấp nháy. Nay có cầu dao: tối đa 3 lần khôi phục mỗi tab trong 10s, quá ngưỡng thì thôi và ghi log `action: 'gave-up'`. Với trang redirect mỗi lần load thì redirect vẫn thắng; user vẫn thấy toast và log giải thích.
+- Kiểm chứng end-to-end trên Chrome for Testing 152 qua CDP, chạm cả ba world: service worker, isolated world, và MAIN world. Bản vá bảo mật 1.1.0 được kiểm lại và đứng vững — `isSameSite` không coi `bbc.co.uk`↔`evil.co.uk` hay `alice.github.io`↔`bob.github.io` là cùng site, `*.facebook.*` không phủ `www.facebook.evil.com`, và `suggestPattern` trả pattern thực sự khớp chính host sinh ra nó.
+- Hai bản copy eTLD+1 (worker và MAIN world) được assert là khớp nhau trên 7 hostname, vì lệch nhau sẽ khiến extension chặn nhầm navigation nội bộ của chính site.
+- Chặn click `target="_blank"` và external form submit vốn đã đúng. Lần đo đầu tưởng hỏng là do harness đọc `e.defaultPrevented` ở listener bubble, trong khi content script gọi `stopPropagation()` ngay sau `preventDefault()` nên listener đó không bao giờ chạy.
+
 ## [1.1.0] - 2026-08-30
 
 ### Fixed

@@ -13,8 +13,24 @@
     requestConfig();
     document.addEventListener('click', onClickCapture, true);
     document.addEventListener('submit', onSubmitCapture, true);
+    document.addEventListener('pointerdown', onUserGesture, true);
+    document.addEventListener('keydown', onUserGesture, true);
     window.addEventListener('message', onGuardMessage);
     if (contextAlive()) chrome.runtime.onMessage.addListener(onRuntimeMessage);
+  }
+
+  // The worker cannot tell a redirect from a user following a link: Chrome
+  // reports transitionType 'link' for both and only tags some of them
+  // 'client_redirect' (spec §8.4). Reporting interaction gives it the one fact
+  // that does separate them. Throttled because it fires on every keystroke, and
+  // sent regardless of `config.active` so the worker's own guard does not depend
+  // on this page's config having arrived yet.
+  let lastGestureSent = 0;
+  function onUserGesture() {
+    const now = Date.now();
+    if (now - lastGestureSent < 250) return;
+    lastGestureSent = now;
+    sendMessage({ type: 'userGesture' });
   }
 
   // ─── Extension context lifetime ─────────────────────────────────────────

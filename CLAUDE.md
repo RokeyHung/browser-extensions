@@ -72,6 +72,6 @@ Conventional subjects, scoped by extension folder: `fix(full-page-capture): ...`
 
 History before `e0c1250` (2026-09-01) is in Vietnamese. Those commits are not being rewritten — match the English convention going forward and read the older ones as-is.
 
-`/commit-push` ([.claude/commands/commit-push.md](.claude/commands/commit-push.md)) commits **only what is already staged** (never `git add`, never `--amend`, never force) and pushes to `main`.
+`/commit` ([.claude/commands/commit.md](.claude/commands/commit.md)) commits **only what is already staged** (never `git add`, never `--amend`, never force). It does not push — pushing stays a deliberate step you take yourself.
 
 A global pre-commit hook blocks commits unless `git config user.allowedemails` / `user.allowednames` whitelist the current identity, and runs gitleaks via the `pre-commit` tool. A failing commit is usually one of those two, not the diff.

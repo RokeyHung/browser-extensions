@@ -1,9 +1,9 @@
 ---
-description: Commit staged changes with an English message, then push to main
+description: Commit staged changes with an English message
 allowed-tools: ['Bash']
 ---
 
-Commit **only what is already staged**, then push to `main`.
+Commit **only what is already staged**. Do not push.
 
 Optional hint from the user about what the change is: $ARGUMENTS
 
@@ -12,8 +12,8 @@ Optional hint from the user about what the change is: $ARGUMENTS
 - **Never stage anything.** Do not run `git add`, `git commit -a`, or `git stash`.
   Unstaged and untracked files must stay untouched — if the user staged a subset
   on purpose, committing more would silently defeat that.
-- **Never rewrite history.** No `git commit --amend`, no `git push --force`, no
-  `--force-with-lease`, no rebase.
+- **Never rewrite history.** No `git commit --amend`, no rebase.
+- **Never push.** Pushing is a separate, deliberate step the user takes.
 - Write the commit message **entirely in English** — subject and body.
 
 ## Steps
@@ -48,7 +48,5 @@ Optional hint from the user about what the change is: $ARGUMENTS
    21-40% human designed / AI implemented, 41-60% even collaboration,
    61-80% AI-led with human integration, 81-100% AI wrote essentially all of it.
 
-6. `git push origin main`
-7. Report the short SHA, the subject line, and the `<old>..<new>` range from the
-   push output. If the push is rejected because the remote moved ahead, stop and
-   report it — do not force, do not pull-rebase without asking.
+6. Report the short SHA and the subject line. Say plainly that nothing was
+   pushed, and leave it to the user to push when they are ready.

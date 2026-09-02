@@ -147,33 +147,23 @@
     return originalOpen.call(window, url, target, features);
   };
 
-  // ── Override location.assign / location.replace ─────────────────────────
-  try {
-    const proto = Object.getPrototypeOf(location) || Location.prototype;
-    ['assign', 'replace'].forEach((method) => {
-      const original = proto[method];
-      if (typeof original !== 'function') return;
-      const wrapped = function (url) {
-        const decision = evaluate(url, 'scripted-redirect');
-        if (decision.block) {
-          report(decision.targetUrl || String(url), decision.reason, 'scripted-redirect');
-          return;
-        }
-        return original.call(this, url);
-      };
-      try {
-        Object.defineProperty(location, method, { value: wrapped, writable: true, configurable: true });
-      } catch {
-        try {
-          location[method] = wrapped;
-        } catch {
-          /* some browsers lock this down; background layer still guards */
-        }
-      }
-    });
-  } catch {
-    /* ignore */
-  }
+  // ── location.assign / location.replace are NOT patched here ─────────────
+  // They cannot be. Every member of `Location` is [LegacyUnforgeable]: an own,
+  // non-writable, non-configurable property of the instance, precisely so a
+  // page cannot lie to itself about where it is. Measured on Chrome 152:
+  //
+  //   Object.getOwnPropertyDescriptor(location, 'assign')
+  //     → { writable: false, configurable: false, enumerable: true }
+  //   Object.defineProperty(location, 'assign', …)  → TypeError
+  //   location.assign = fn                          → TypeError
+  //   patching Location.prototype                   → TypeError
+  //
+  // Until 1.1.1 this file tried anyway. It read the method off
+  // Object.getPrototypeOf(location), where it does not exist, so
+  // `if (typeof original !== 'function') return` bailed out before the
+  // defineProperty that would have thrown — no patch, no error, and nothing to
+  // suggest the redirect guard was inert. Scripted redirects are handled by the
+  // service worker's webNavigation layer instead (background.js).
 
   // ── Receive config from the content script ──────────────────────────────
   window.addEventListener('message', (event) => {
