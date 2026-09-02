@@ -43,22 +43,43 @@ if (typeof LabelResolver === 'undefined') {
       if (sib.matches('input, textarea, select, button')) return true;
       if (sib.querySelector('input, textarea, select')) return true;
       const forId = sib.tagName === 'LABEL' ? sib.getAttribute('for') : null;
-      return !!forId && forId !== el.id;
+      if (forId && forId !== el.id) return true;
+      // An element some other field points at with aria-labelledby is that
+      // field's label, whatever tag it happens to use.
+      if (sib.id && sib.id !== el.id) {
+        try {
+          const referrer = document.querySelector(`[aria-labelledby~="${CSS.escape(sib.id)}"]`);
+          if (referrer && referrer !== el) return true;
+        } catch {
+          // A selector we cannot build tells us nothing; fall through.
+        }
+      }
+      return false;
     }
 
-    // Walk backwards from the field looking for the nearest text that is not
-    // itself part of another control.
+    // Nearest text before the field, inside the field's own container — spec §6.3
+    // tier 7. Two bounds keep it there, and both were added after measuring what
+    // happens without them:
+    //
+    //  - The walk stops at the field's own <form> (or <body> for a loose field).
+    //    Without that it climbed out of the form, past <body>, and returned the
+    //    text of <title> as the field's label.
+    //  - Reaching anything that belongs to another field ends the search rather
+    //    than stepping over it. Text further back sits on the far side of that
+    //    field, so it describes that one, not this one.
     function fromPrecedingText(el) {
+      const boundary = el.closest('form') || document.body;
       let node = el;
-      for (let depth = 0; depth < 3 && node; depth++) {
+      for (let depth = 0; depth < 3 && node && node !== boundary; depth++) {
         let sib = node.previousSibling;
         while (sib) {
           if (sib.nodeType === Node.TEXT_NODE) {
             const text = clean(sib.textContent);
             if (text) return text;
           } else if (sib.nodeType === Node.ELEMENT_NODE) {
+            if (belongsToAnotherField(sib, el)) return '';
             const tag = sib.tagName.toLowerCase();
-            if (tag !== 'script' && tag !== 'style' && !belongsToAnotherField(sib, el)) {
+            if (tag !== 'script' && tag !== 'style') {
               const text = clean(sib.textContent);
               if (text) return text;
             }

@@ -334,6 +334,17 @@ Tìm label cho field theo thứ tự ưu tiên, lấy cái đầu tiên có nộ
 
 Label được trim, gộp whitespace và cắt tối đa 120 ký tự.
 
+### Ranh giới của tầng 7
+
+Chữ "trong cùng container" ở tầng 7 được thực thi bằng **hai** chặn, cả hai đều thêm sau khi đo hậu quả của việc thiếu chúng:
+
+- **Không đi quá `<form>` của chính field** (hoặc `<body>` với field không nằm trong form nào). Thiếu chặn này, vòng lặp trèo khỏi form, qua `<body>`, sang `<head>` và trả về text của `<title>` làm label — đo được trên trang chỉ có `<button>` đứng trước field: label ra đúng bằng tiêu đề trang.
+- **Gặp thứ thuộc về field khác thì dừng hẳn**, không bước qua rồi đi tiếp. Text nằm xa hơn nữa ở phía bên kia field đó, nên nó mô tả field đó chứ không phải field đang xét. "Thuộc về field khác" gồm: chính là control, chứa control bên trong, là `<label for>` trỏ sang field khác, hoặc là element được field khác trỏ tới bằng `aria-labelledby`.
+
+Hai chặn này **không** thu hẹp tầng 7 ở chỗ nó vốn đúng: heading hay đoạn text đứng ngay trước field trong cùng container, không có control nào chen giữa, vẫn được lấy làm label.
+
+Vì sao đáng quan tâm chứ không chỉ là cosmetic: `labelText` còn được dùng làm fallback tìm lại field lúc apply (§9.2) và làm khoá so khớp trong `findOld` khi re-capture (§13.5). Hai field không tên cùng nhận một label rác giống nhau thì re-capture có thể ghép nhầm cặp, và câu trả lời đã lưu rơi sang field khác.
+
 ## 6.4. Selector strategy
 
 Mỗi field lưu **nhiều cách định danh** để lần apply sau vẫn tìm lại được, kể cả khi DOM đổi:
@@ -382,6 +393,22 @@ Khi capture lại cùng một page:
 - Nếu không match gì → tạo form record mới.
 
 ## 6.7. Output của capture
+
+### `formLabel` — tên hiển thị của form
+
+Lấy cái đầu tiên có nội dung:
+
+1. `aria-label` của `<form>`
+2. `<h1>`…`<h4>` đầu tiên bên trong form
+3. `<legend>` đầu tiên bên trong form
+4. `Form #{id}` nếu id không random
+5. `Form {name}`
+6. `{document.title} form`
+7. `Form #{index}`
+
+Heading đứng **trước** legend là có chủ đích. `querySelector('legend')` trả về legend đầu tiên ở bất kỳ đâu trong form, mà dạng markup rất phổ biến là form có `<h2>` làm tiêu đề cộng một `<fieldset><legend>` gom nhóm radio — khi đó legend là tên của **nhóm**, không phải của form, và form đăng ký bị đặt tên thành "Preferred contact". Legend vẫn là câu trả lời đúng khi nó là thứ duy nhất đặt tên cho form, nên nó ở ngay bậc dưới.
+
+Form không nằm trong thẻ `<form>` nào (pseudo-form) luôn có label `Fields outside form`.
 
 ```json
 {

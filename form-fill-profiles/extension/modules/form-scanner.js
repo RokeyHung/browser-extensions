@@ -99,14 +99,20 @@ if (typeof FormScanner === 'undefined') {
       return groups;
     }
 
+    // Heading before legend: `querySelector('legend')` returns the first legend
+    // anywhere inside the form, which on the very common "heading + a fieldset
+    // grouping the radios" shape is the group's name, not the form's — a signup
+    // form came out labelled "Preferred contact". A legend is still the right
+    // answer when it is the only thing naming the form, so it stays as the next
+    // fallback.
     function formLabelOf(formEl, index) {
       if (!formEl) return 'Fields outside form';
       const aria = formEl.getAttribute('aria-label');
       if (aria) return LabelResolver.clean(aria);
-      const legend = formEl.querySelector('legend');
-      if (legend?.textContent.trim()) return LabelResolver.clean(legend.textContent);
       const heading = formEl.querySelector('h1, h2, h3, h4');
       if (heading?.textContent.trim()) return LabelResolver.clean(heading.textContent);
+      const legend = formEl.querySelector('legend');
+      if (legend?.textContent.trim()) return LabelResolver.clean(legend.textContent);
       if (formEl.id && !FieldSelector.isRandomId(formEl.id)) return `Form #${formEl.id}`;
       if (formEl.name) return `Form ${formEl.name}`;
       if (document.title) return `${LabelResolver.clean(document.title).slice(0, 60)} form`;

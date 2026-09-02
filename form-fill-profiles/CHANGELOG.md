@@ -4,6 +4,23 @@ Tất cả thay đổi đáng chú ý của extension **Form Fill Profiles** đ�
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] - 2026-09-02
+
+### Fixed
+
+- **Field không có label riêng bị gán label của chỗ khác** — spec §6.3 tầng 7 ghi "text node liền trước field **trong cùng container**", nhưng `fromPrecedingText` trèo 3 tầng ancestor và quét **không giới hạn** số anh em, bước qua cả những thứ thuộc về field khác rồi đi tiếp. Đo trên markup đời thường: field chỉ có `<button>` đứng trước nhận label đúng bằng **tiêu đề trang** — vòng lặp đã trèo khỏi `<form>`, qua `<body>`, sang `<head>`. Xác nhận riêng bằng trang có title `UNIQUE-TITLE-TEXT`: label trả về đúng chuỗi đó.
+- Nay có hai chặn: không đi quá `<form>` của chính field (hoặc `<body>` với field rời), và gặp thứ thuộc về field khác thì **dừng hẳn** thay vì bước qua — text xa hơn nằm bên kia field đó nên mô tả field đó. "Thuộc về field khác" nay tính cả element được field khác trỏ tới bằng `aria-labelledby`, thứ trước đây không được nhận ra.
+- Không phải chuyện cosmetic: `labelText` còn là fallback tìm lại field lúc apply (§9.2) và là khoá so khớp trong `findOld` khi re-capture (§13.5), nên hai field không tên cùng nhận một label rác có thể khiến re-capture ghép nhầm cặp và câu trả lời đã lưu rơi sang field khác.
+- Hai chặn này không thu hẹp tầng 7 ở chỗ nó vốn đúng: heading hoặc đoạn text đứng ngay trước field trong cùng container, không control nào chen giữa, vẫn được lấy — có test riêng khoá tính chất đó lại.
+- **Form bị đặt tên theo `<legend>` của fieldset con** — `formLabelOf` tìm legend **trước** heading, mà `querySelector('legend')` trả về legend đầu tiên ở bất kỳ đâu trong form. Dạng markup rất phổ biến là form có `<h2>` làm tiêu đề cộng một `<fieldset><legend>` gom nhóm radio; khi đó form đăng ký bị đặt tên thành "Preferred contact". Nay heading đứng trước legend. Legend vẫn được dùng khi nó là thứ duy nhất đặt tên cho form.
+
+### Notes
+
+- Kiểm chứng end-to-end trên Chrome for Testing 152 qua CDP, 188/188 assertion. Các module content script nằm trong isolated world nên suite tìm execution context của world đó rồi evaluate thẳng vào — thứ được test là code trình duyệt thực sự nạp.
+- Bản vá bảo mật 1.0.1 được kiểm lại và đứng vững: `*.facebook.*` không khớp `www.facebook.evil.com`, `facebook.*` không khớp `facebook.evil.com`.
+- Lời hứa "không reset giá trị trên controlled input" được kiểm bằng một component tự dựng: nó chỉ cập nhật state khi nhận `input` event mang giá trị mới, rồi test gọi reconcile để ép nó vẽ lại. Ghi thẳng `el.value` mà không qua native setter sẽ mất giá trị ở bước này.
+- Fixture ban đầu để 9 case label thành anh em phẳng, nên markup của case này thành đáp án của case kia — đó là lỗi của test, không phải của extension; mỗi case giờ nằm trong container riêng.
+
 ## [1.0.1] - 2026-08-30
 
 ### Fixed
