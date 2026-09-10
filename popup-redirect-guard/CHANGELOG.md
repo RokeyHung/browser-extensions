@@ -4,6 +4,20 @@ Tất cả thay đổi đáng chú ý của extension **Popup Redirect Guard** �
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.1.2] - 2026-09-11
+
+### Fixed
+
+- **Không rời được site được bảo vệ bằng bookmark** — heuristic gesture thêm ở 1.1.1 chỉ nhìn thấy `pointerdown`/`keydown` **bên trong trang**, mà bấm bookmark không sinh event nào trong page. Navigation bị tính là của script và tab bị `chrome.tabs.update` kéo ngược về URL cũ. Đo end-to-end trên Chrome 152: đứng ở `site-a.test` (rule normal), bấm thật vào bookmark trong menu Bookmarks → commit `auto_bookmark` `[]` sang `site-b.test`, ngay sau đó là commit `link` `[]` ngược về `site-a.test`, tab đứng lại ở `site-a.test` và log ghi `blocked | scripted redirect external`. Cùng lỗi đó ăn luôn omnibox (`typed`) — đo bằng ba lượt `Page.navigate` cùng đích, khác `transitionType`: `typed`, `auto_bookmark` và `link` đều bị chặn y hệt nhau, tức guard không hề đọc `transitionType`.
+- Nay `isBrowserInitiated(details)` chạy **trước** heuristic gesture, ở cả nhánh same-tab lẫn nhánh popup: `auto_bookmark`, `typed`, `generated`, `keyword`, `keyword_generated`, `reload`, `start_page`, cùng qualifier `forward_back` / `from_address_bar` được cho qua thẳng. Nhánh popup trước đó nhận `details` mà không dùng đến; giờ tab do trình duyệt mở ("mở bookmark ở tab mới") không bị đóng nữa.
+
+### Notes
+
+- **Đổi này không mất coverage**, đã đo chứ không suy đoán: mọi cách redirect trong page đều commit là `link`, kể cả khi trang vừa được vào bằng transition đáng tin. Vào `site-a/replace.html` bằng `typed` → redirect commit `link ["client_redirect"]`; vào cùng trang đó bằng `auto_bookmark` → vẫn `link ["client_redirect"]`; `location.assign` vào bằng `auto_bookmark` → `link []`. Transition của lượt vào **không** truyền sang redirect trang bắn ra sau đó, nên không có đường nào để trang mượn `auto_bookmark`/`typed` mà lọt.
+- Qualifier `client_redirect` được cho quyền phủ quyết `transitionType` — Chrome 152 không cần, nhưng đó là chính trang khai redirect là của mình, không nên phụ thuộc vào hành vi hiện tại giữ nguyên mãi.
+- Cả ba dạng scripted redirect được đo lại sau khi sửa và vẫn bị chặn đúng như 1.1.1, gồm cả cầu dao `gave-up` sau 3 lần khôi phục.
+- Harness: Chrome 152 thật, hai domain giả qua `--host-resolver-rules`, một extension probe ghi lại `transitionType`/`transitionQualifiers`/`openerTabId`, và bookmark được bấm thật qua menu Bookmarks (AppleScript). `--load-extension` đã bị Chrome 152 gỡ; phải nạp qua CDP `Extensions.loadUnpacked` với `--enable-unsafe-extension-debugging`. Lưu ý khi đo lại: service worker cũ bị cache theo profile, nạp lại cùng đường dẫn **không** đủ để chạy code mới — lần đo đầu sau khi sửa vẫn ra kết quả cũ vì lý do này, phải dùng profile sạch hoặc bump version.
+
 ## [1.1.1] - 2026-09-02
 
 ### Fixed

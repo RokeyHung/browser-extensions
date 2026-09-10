@@ -504,6 +504,24 @@ Dùng `chrome.webNavigation.onCommitted` để phát hiện tab vừa chuyển s
 
 Đòi `client_redirect` — như bản trước 1.1.1 — cho lọt thẳng 2 trong 3 cách. Thứ thực sự phân biệt "script redirect" với "user bấm link" là **user vừa tương tác hay chưa**: content script báo mỗi `pointerdown`/`keydown` (throttle 250ms) về worker, và navigation không có gesture trong `USER_GESTURE_WINDOW_MS` (1500ms) được coi là của script.
 
+#### Navigation do chính trình duyệt khởi tạo thì bỏ qua hẳn
+
+Heuristic gesture ở trên chỉ nhìn thấy tương tác **bên trong trang**. Bấm bookmark, gõ omnibox, back/forward, reload đều không sinh `pointerdown`/`keydown` nào trong page, nên tới 1.1.1 chúng bị tính là của script và tab bị kéo ngược lại — đứng ở site được bảo vệ thì **không rời đi bằng bookmark được nữa**.
+
+Vì vậy `isBrowserInitiated(details)` được kiểm tra **trước** heuristic gesture, ở cả nhánh same-tab lẫn nhánh popup:
+
+| Nguồn                       | `transitionType` / qualifier                                             | Xử lý      |
+| --------------------------- | ------------------------------------------------------------------------ | ---------- |
+| Bookmark                    | `auto_bookmark`                                                          | cho qua    |
+| Omnibox / search từ omnibox | `typed`, `generated`, `keyword`, `keyword_generated`, `from_address_bar` | cho qua    |
+| Back / Forward              | qualifier `forward_back`                                                 | cho qua    |
+| Reload, trang chủ           | `reload`, `start_page`                                                   | cho qua    |
+| Trang tự làm (link, script) | `link`                                                                   | xét như cũ |
+
+Trang **không giả được** những giá trị này: `transitionType` do phía khởi tạo navigation bên trong trình duyệt gán. Đo trên Chrome 152, mọi cách redirect trong page — `location.href`, `location.assign`, `location.replace` — đều commit là `link`, **kể cả khi trang đó vừa được mở bằng `typed` hoặc `auto_bookmark`**: transition của lượt vào không truyền sang redirect mà trang bắn ra sau đó. Nên tin danh sách trên không mất chút coverage nào.
+
+Riêng qualifier `client_redirect` được cho quyền phủ quyết `transitionType`: nó là chính trang khai đây là redirect của mình. Chrome 152 không truyền transition sang client redirect, nhưng không nên phụ thuộc vào việc đó giữ nguyên mãi.
+
 State theo tab (`prevUrl`, opener, thời điểm gesture) nằm trong **`chrome.storage.session`**, không phải `Map` trong bộ nhớ: MV3 tắt worker khi rảnh, mà chính navigation cần kiểm tra lại thường là thứ đánh thức worker — để trong `Map` thì sau mỗi lần worker ngủ, navigation đầu tiên của tab không có `prevUrl` để so và được cho qua.
 
 Mọi lượt ghi vào `storage.session` đi qua **một hàng đợi promise**: đó là read-modify-write trên cùng một object, và các event gọi nó chồng nhau (đóng tab cũ xoá entry trong khi tab mới ghi URL đầu tiên, cùng key), nên không nối tiếp thì một lượt ghi bị mất và tab đó mất `prevUrl`.

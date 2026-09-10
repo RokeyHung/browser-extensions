@@ -58,6 +58,33 @@ const SESSION_KEYS = { opener: 'openerByTab', lastUrl: 'lastTopUrlByTab', gestur
 // theirs rather than a script's.
 const USER_GESTURE_WINDOW_MS = 1500;
 
+// Navigations the browser itself started: the user clicked a bookmark, typed in
+// the omnibox, went back or forward, or hit reload. None of them produce an
+// in-page pointerdown/keydown, so the gesture window above scored every one of
+// them as a script's work and the tab was restored — on a protected site you
+// could not leave by bookmark at all. Measured on Chrome 152, clicking a
+// bookmark from a protected page committed `auto_bookmark` with no qualifiers
+// and was logged as 'scripted redirect external'.
+//
+// A page cannot forge these. transitionType is assigned by whatever initiated
+// the navigation inside the browser, and everything a page can start arrives as
+// 'link' — measured for location.href, location.assign and location.replace,
+// including when the page was itself entered as 'typed' or 'auto_bookmark': the
+// entry transition is not inherited by the redirect it fires. Trusting the list
+// therefore costs no coverage (spec §8.4).
+const BROWSER_UI_TRANSITIONS = new Set(['auto_bookmark', 'typed', 'generated', 'keyword', 'keyword_generated', 'reload', 'start_page']);
+const BROWSER_UI_QUALIFIERS = new Set(['forward_back', 'from_address_bar']);
+
+function isBrowserInitiated(details) {
+  const qualifiers = details.transitionQualifiers || [];
+  // Chrome 152 does not propagate the entry transition onto a client redirect,
+  // but the qualifier is the page saying it did this itself, so let it override
+  // the type rather than depend on that staying true.
+  if (qualifiers.includes('client_redirect')) return false;
+  if (BROWSER_UI_TRANSITIONS.has(details.transitionType)) return true;
+  return qualifiers.some((q) => BROWSER_UI_QUALIFIERS.has(q));
+}
+
 // Restoring a tab re-runs the page, and a page that redirects on load simply
 // redirects again — measured as an unbounded restore/redirect loop that pins the
 // tab flickering. After this many restores for one tab inside the window the
@@ -164,10 +191,20 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   }
 
   // Case B: same-tab navigation → maybe a scripted external redirect.
-  await handleSameTabNavigation(tabId, url, prevUrl);
+  await handleSameTabNavigation(tabId, url, prevUrl, details);
 });
 
 async function handleOpenedTab(tabId, targetUrl, details, openerTabId) {
+  // The browser opened this tab, not the opener's page — "open in new tab" on a
+  // bookmark or a history entry, which Chrome may still report with the tab the
+  // user was on as openerTabId. Closing it would be the bookmark false positive
+  // again, in its new-tab form. A window.open popup commits 'link' and is
+  // unaffected.
+  if (isBrowserInitiated(details)) {
+    await Session.patch(SESSION_KEYS.opener, tabId, undefined);
+    return;
+  }
+
   let openerTab;
   try {
     openerTab = await chrome.tabs.get(openerTabId);
@@ -226,8 +263,12 @@ async function handleOpenedTab(tabId, targetUrl, details, openerTabId) {
   }
 }
 
-async function handleSameTabNavigation(tabId, url, prevUrl) {
+async function handleSameTabNavigation(tabId, url, prevUrl, details) {
   if (!prevUrl || prevUrl === url) return;
+
+  // The user drove this from the browser's own UI — it is not the page's doing
+  // and must never be restored, whatever the gesture window says.
+  if (isBrowserInitiated(details)) return;
 
   const ctx = await getContext(prevUrl);
   if (!ctx.rule) return;
