@@ -360,12 +360,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       (async () => {
         const config = await buildSiteConfig(url);
         // Attach any toasts queued for this tab (e.g. after a redirect restore).
+        // Only the ones raised on the page now asking: a queued toast waits for
+        // the tab's next load, and that load is not always the restore it was
+        // queued for. When the circuit breaker gives up the tab stays on the
+        // redirect target, and the toast about leaving the protected site would
+        // surface on the unrelated site the user ended up on — sitting there
+        // for its full 5s. The rest are dropped rather than held, because a
+        // block is only worth explaining on the page it happened to.
         if (sender.tab) {
           const queued = pendingToasts.get(sender.tab.id);
-          if (queued && queued.length) {
-            config.pendingToasts = queued;
-            pendingToasts.delete(sender.tab.id);
-          }
+          pendingToasts.delete(sender.tab.id);
+          const mine = (queued || []).filter((p) => p.sourceHostname === config.sourceHostname);
+          if (mine.length) config.pendingToasts = mine;
         }
         sendResponse(config);
       })();

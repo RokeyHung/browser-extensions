@@ -4,6 +4,19 @@ Tất cả thay đổi đáng chú ý của extension **Popup Redirect Guard** �
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.1.3] - 2026-09-11
+
+### Fixed
+
+- **`Always allow` không mở site, chỉ ẩn toast** — nó lưu allow rule rồi `dismissToast()` và dừng ở đó. Nhưng allowlist chưa bao giờ là thứ user muốn, trang mới là: user phải tự đi tìm lại link vừa bị chặn, mà với scripted redirect thì không còn link nào để tìm — cho phép xong vẫn đứng nguyên tại chỗ. Nay nút này mở URL bị chặn đúng cách `Open once` mở, **sau khi** rule đã lưu xong chứ không phải trước, để guard không chặn đúng cái navigation user vừa cho phép. Đo: chặn link `target="_blank"` sang `site-b.test`, bấm `Always allow` → allowlist có `site-a.test → site-b.test`, tab mới mở ở `site-b.test`, toast biến mất. Trước đó cùng thao tác chỉ có allow rule, không có tab nào.
+- **Toast nổi lên trên site không liên quan và đứng đủ 5 giây** — toast xếp hàng trong `pendingToasts` chờ **lần load kế tiếp của tab**, mà lần đó không phải lúc nào cũng là lần khôi phục nó được xếp cho. Khi cầu dao redirect bỏ cuộc (`gave-up`), tab nằm lại ở chính site đích, nên toast báo việc rời `site-a.test` sẽ hiện trên `site-b.test`. Đo trên Chrome 152, bản chưa vá: sau `gave-up`, lần load kế tiếp của tab cho `{"page":"site-b.test","toast":true,"about":"site-b.test"}`; sau khi vá là `{"toast":false}`. Nay `getSiteConfig` chỉ giao toast cho đúng trang đã sinh ra nó (khớp `sourceHostname`), phần còn lại bỏ luôn — một lần chặn chỉ đáng giải thích trên trang nó xảy ra.
+- Content script `dismissToast()` ở `pagehide`: rời trang là toast hết chuyện để nói, không đợi timer 5s quyết định.
+
+### Notes
+
+- Đường same-tab thường vốn đã không giữ toast lại: đo bằng trace trên DOM chung, `dismissToast` chạy **trước** `pagehide` (`|dismiss:` rồi mới `|PAGEHIDE`). Nên listener `pagehide` là để chuyện đó thành xác định thay vì phụ thuộc vào một cuộc đua timer — trang **có** vào bfcache thật (đo: `window.__mark` sống sót qua một lần Back), và timer bị đóng băng trong đó thì được tự do trả toast lại khi user quay về. Nó không sửa lỗi nào quan sát được ở đường này; lỗi thật là toast xếp hàng ở trên.
+- Hồi quy đo lại sau khi sửa: bookmark vẫn đi được (1.1.2), cả ba dạng scripted redirect vẫn bị chặn 3 lần + `gave-up`, và toast vẫn hiện bình thường trên chính trang bị chặn.
+
 ## [1.1.2] - 2026-09-11
 
 ### Fixed

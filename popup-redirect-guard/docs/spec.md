@@ -208,7 +208,7 @@ https://ads-example.com/landing
 [Open once] [Always allow] [Dismiss]
 ```
 
-Toast tự ẩn sau 5 giây nếu user không tương tác.
+Toast tự ẩn sau 5 giây nếu user không tương tác, hoặc ngay khi tab rời trang đã sinh ra nó (§16).
 
 ## 5.3. Blocked attempts dashboard
 
@@ -945,7 +945,10 @@ https://ads-example.com/landing
 
 3. User click.
 4. Extension thêm target hostname vào allowlist cho source site.
-5. Lần sau target domain đó không bị chặn.
+5. Extension **mở URL bị chặn**, đúng cách `Open once` mở — rồi ẩn toast.
+6. Lần sau target domain đó không bị chặn.
+
+Bước 5 là bắt buộc chứ không phải tiện tay: allowlist chưa bao giờ là thứ user muốn, trang mới là. `Always allow` mà chỉ ẩn toast thì bắt user tự đi tìm lại link vừa bị chặn, và với scripted redirect thì **không còn link nào để tìm**. Mở sau khi rule đã lưu xong, không mở trước, để guard không chặn đúng cái navigation user vừa cho phép.
 
 ## 15. Logic quyết định block
 
@@ -1005,6 +1008,15 @@ ads-example.com
 
 [View] [Dismiss]
 ```
+
+### Toast thuộc về đúng một trang
+
+Toast nói về **một** lần chặn trên **một** trang. Rời trang đó là nó hết chuyện để nói, nên phải biến mất ngay, không đợi hết 5 giây:
+
+- Content script `dismissToast()` ở `pagehide`. Trang có vào bfcache — đo được instance document sống sót qua một lần Back — nên timer 5s bị đóng băng trong đó có thể trả toast lại khi user quay về.
+- Toast xếp hàng trong `pendingToasts` chỉ được giao cho **đúng trang đã sinh ra nó**: `getSiteConfig` lọc theo `sourceHostname`, phần còn lại bị bỏ chứ không giữ tiếp.
+
+Lọc theo `sourceHostname` là bắt buộc vì toast xếp hàng đợi **lần load kế tiếp của tab**, mà lần load đó không phải lúc nào cũng là lần khôi phục nó được xếp cho. Khi cầu dao (§8.4) bỏ cuộc, tab nằm lại ở chính site đích của redirect, và toast báo "chặn khi rời site được bảo vệ" sẽ nổi lên trên site lạ đó — đo trên Chrome 152: sau khi `gave-up`, lần load kế tiếp của tab ở `site-b.test` hiện toast `Blocked unwanted popup / site-b.test`, đứng đủ 5 giây.
 
 ## 17. Options page
 
@@ -1200,7 +1212,7 @@ Khi user click `Open once`, extension mở URL bị chặn một lần và khôn
 
 ### AC-07: Always allow
 
-Khi user click `Always allow`, extension thêm target domain vào allowlist cho source site.
+Khi user click `Always allow`, extension thêm target domain vào allowlist cho source site, mở URL bị chặn, rồi ẩn toast.
 
 ### AC-08: Strict mode
 

@@ -16,6 +16,13 @@
     document.addEventListener('pointerdown', onUserGesture, true);
     document.addEventListener('keydown', onUserGesture, true);
     window.addEventListener('message', onGuardMessage);
+    // A toast is about one navigation on one page; once the tab leaves that
+    // page it has nothing left to say, so drop it on the way out instead of
+    // leaving the 5s timer to decide. This page does go into the bfcache —
+    // measured, the document instance survives a back — and a timer that was
+    // frozen there would otherwise be free to hand the toast back on return
+    // (spec §16).
+    window.addEventListener('pagehide', dismissToast);
     if (contextAlive()) chrome.runtime.onMessage.addListener(onRuntimeMessage);
   }
 
@@ -269,18 +276,26 @@
 
   function handleToastAction(action, url, targetHostname) {
     if (action === 'open') {
-      // If the extension is gone, open it from here rather than leaving the
-      // user with a link that does nothing.
-      if (!sendMessage({ type: 'openOnce', url }) && url) {
-        window.open(url, '_blank', 'noopener');
-      }
+      openBlocked(url);
     } else if (action === 'allow') {
-      sendMessage(
-        { type: 'alwaysAllow', sourceUrl: location.href, targetHostname },
-        () => requestConfig() // refresh config + guard so it stops blocking
-      );
+      sendMessage({ type: 'alwaysAllow', sourceUrl: location.href, targetHostname }, () => {
+        requestConfig(); // refresh config + guard so it stops blocking
+        // The allowlist entry was never the point — the user wanted the page.
+        // "Always allow" that only dismissed the toast left them to find the
+        // blocked link again, and on a scripted redirect there is no link left
+        // to find. Opened after the rule is stored, not before, so the guard
+        // cannot block the very navigation the user just permitted.
+        openBlocked(url);
+      });
     }
     dismissToast();
+  }
+
+  function openBlocked(url) {
+    if (!url) return;
+    // If the extension is gone, open it from here rather than leaving the user
+    // with a button that does nothing.
+    if (!sendMessage({ type: 'openOnce', url })) window.open(url, '_blank', 'noopener');
   }
 
   function ensureToastContainer() {
