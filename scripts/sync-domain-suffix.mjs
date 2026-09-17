@@ -23,6 +23,7 @@ const END = '<<< shared:domain-suffix <<<';
 const TARGETS = [
   'clean-site-data/extension/domain-utils.js',
   'form-fill-profiles/extension/modules/form-matcher.js',
+  'link-param-cleaner/extension/modules/domain-utils.js',
   'popup-redirect-guard/extension/injected-guard.js',
   'popup-redirect-guard/extension/modules/domain-matcher.js',
   'storage-explorer/extension/modules/cookie-manager.js',

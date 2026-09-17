@@ -8,8 +8,8 @@
 // re-indents it to match each destination. Run `make check-domain-suffix` to
 // fail the build when a copy has drifted.
 //
-// Consumers: clean-site-data, form-fill-profiles, popup-redirect-guard,
-// site-path-discovery, storage-explorer.
+// Consumers: clean-site-data, form-fill-profiles, link-param-cleaner,
+// popup-redirect-guard, site-path-discovery, storage-explorer.
 
 // >>> shared:domain-suffix — generated, do not edit (make sync-domain-suffix) >>>
 // Derive the registrable domain (eTLD+1) from a hostname. Getting this wrong is

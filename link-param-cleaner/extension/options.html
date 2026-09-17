@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Link Param Cleaner — Options</title>
+    <link rel="stylesheet" href="styles/popup.css" />
+    <link rel="stylesheet" href="styles/options.css" />
+  </head>
+  <body class="options-body">
+    <div class="page-header">
+      <img class="header-logo" src="icons/icon48.png" alt="" />
+      <div>
+        <h1>Link Param Cleaner</h1>
+        <p class="subtitle">Watched sites, the params they attach to outbound links, and what gets removed</p>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="tabs">
+        <button class="tab active" data-tab="sites">Sites</button>
+        <button class="tab" data-tab="activity">Activity</button>
+        <button class="tab" data-tab="settings">Settings</button>
+      </div>
+
+      <!-- Sites -->
+      <div class="tab-panel active" id="panel-sites">
+        <div class="panel-head">
+          <h2>Watched sites</h2>
+          <div class="panel-actions">
+            <span class="muted" id="sites-status"></span>
+            <button class="action-btn" id="btn-import">⬆ Import JSON</button>
+            <button class="action-btn action-btn-primary" id="btn-export">⬇ Export JSON</button>
+          </div>
+        </div>
+        <input type="file" id="import-file" accept=".json" hidden />
+
+        <div class="split">
+          <div class="site-pane">
+            <div class="inline-form">
+              <input type="text" id="site-input" placeholder="Add a domain (e.g. facebook.com)" />
+              <button class="action-btn action-btn-primary" id="site-add">Add</button>
+            </div>
+            <input type="text" id="site-search" class="search-input" placeholder="Search sites…" />
+            <div id="site-list"></div>
+          </div>
+
+          <div class="param-pane" id="param-pane"></div>
+        </div>
+      </div>
+
+      <!-- Activity -->
+      <div class="tab-panel" id="panel-activity">
+        <div class="panel-head">
+          <h2>Activity</h2>
+          <div class="panel-actions">
+            <select id="activity-filter" class="action-btn"></select>
+            <button class="action-btn action-btn-danger" id="activity-clear">🗑 Clear log</button>
+          </div>
+        </div>
+        <div id="activity-container"></div>
+      </div>
+
+      <!-- Settings -->
+      <div class="tab-panel" id="panel-settings">
+        <div class="panel-head">
+          <h2>Settings</h2>
+        </div>
+        <div class="settings-card" id="settings-container"></div>
+        <p class="footnote">
+          Link Param Cleaner needs access to every site because Chrome only allows a redirect rule when the extension has permission for both the page
+          the link is on and the page it points at. Nothing is ever sent anywhere: the watch list, the params and the log stay in this browser.
+        </p>
+      </div>
+    </div>
+
+    <script src="modules/domain-utils.js"></script>
+    <script src="modules/param-catalog.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

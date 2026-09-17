@@ -1,0 +1,415 @@
+/* popup.css — base + popup styles (also loaded by options.html). */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: #1f2937;
+  background: #fff;
+}
+
+body.popup-body {
+  width: 320px;
+  min-height: 200px;
+}
+
+/* ── Header ── */
+.header {
+  background: linear-gradient(135deg, #5546cb, #7c3aed);
+  color: white;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* The icon sits on a light plate: the artwork is a saturated purple chain on a
+   saturated purple gradient, which would otherwise read as a smudge. */
+.header-logo {
+  width: 24px;
+  height: 24px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 6px;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.content {
+  padding: 16px;
+}
+
+/* ── Site info card ── */
+.site-info {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.site-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.site-domain {
+  font-weight: 600;
+  color: #111827;
+  word-break: break-all;
+}
+
+.site-sub {
+  font-size: 11px;
+  color: #6b7280;
+  font-family: 'Courier New', monospace;
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+/* ── Status row ── */
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.status-text {
+  font-size: 13px;
+}
+
+.status-text .status-on {
+  color: #059669;
+  font-weight: 600;
+}
+
+.status-text .status-off {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.status-text .pattern {
+  display: block;
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+/* ── Param list ── */
+.param-list {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+/* Eight rows is the point where the list stops fitting in a 320px popup; past
+   that it scrolls and a link offers the full table instead. */
+.param-list.scrolling {
+  max-height: 232px;
+  overflow-y: auto;
+}
+
+.param-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.param-row:last-child {
+  border-bottom: none;
+}
+
+.param-row:hover {
+  background: #f9fafb;
+}
+
+.param-row input {
+  accent-color: #5546cb;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.param-name {
+  font-family: 'Courier New', monospace;
+  color: #111827;
+  word-break: break-all;
+  flex: 1;
+}
+
+.param-seen {
+  color: #9ca3af;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.param-empty {
+  border: 1px dashed #e5e7eb;
+  border-radius: 8px;
+  padding: 16px 12px;
+  margin-bottom: 10px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* ── Badges ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badge-track {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.badge-func {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-manual {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.badge-on {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-off {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* ── Warning / confirm bar ── */
+.warn-bar {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+
+.warn-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s;
+  margin-bottom: 8px;
+}
+
+.btn-primary {
+  background: #5546cb;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #4438a8;
+}
+
+.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn {
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.action-btn:hover {
+  background: #f3f4f6;
+}
+
+.action-btn-primary {
+  background: #5546cb;
+  color: white;
+  border-color: #5546cb;
+}
+
+.action-btn-primary:hover {
+  background: #4438a8;
+}
+
+.action-btn-danger {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.action-btn-danger:hover {
+  background: #fee2e2;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #5546cb;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 0 10px;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+/* ── Toggle switch ── */
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: #d1d5db;
+  border-radius: 22px;
+  transition: 0.2s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.toggle input:checked + .toggle-slider {
+  background: #5546cb;
+}
+
+.toggle input:checked + .toggle-slider::before {
+  transform: translateX(16px);
+}
+
+/* ── Stats / misc ── */
+.stat-line {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.last-clean {
+  border-top: 1px solid #f3f4f6;
+  padding-top: 8px;
+  word-break: break-all;
+}
+
+.unsupported-msg {
+  padding: 24px 16px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.unsupported-msg .icon {
+  font-size: 30px;
+  margin-bottom: 8px;
+}
+
+.spacer {
+  height: 14px;
+}
+
+.muted {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.mono {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
