@@ -39,8 +39,16 @@ function extractBlock(lines, file) {
   return { start, end, body: lines.slice(start, end + 1) };
 }
 
-const sourceLines = readFileSync(resolve(ROOT, SOURCE), 'utf8').split('\n');
-const canonical = extractBlock(sourceLines, SOURCE).body;
+// Line endings are not content. On Windows a checkout is CRLF, and comparing
+// raw lines made every copy look drifted while `make sync-domain-suffix` had
+// nothing to change — the check failed on a clean tree. Split on either ending,
+// compare the text, and write each file back with the ending it already had.
+function readLines(path) {
+  const text = readFileSync(path, 'utf8');
+  return { lines: text.split(/\r?\n/), eol: text.includes('\r\n') ? '\r\n' : '\n' };
+}
+
+const canonical = extractBlock(readLines(resolve(ROOT, SOURCE)).lines, SOURCE).body;
 
 const check = process.argv.includes('--check');
 const drifted = [];
@@ -48,7 +56,7 @@ let written = 0;
 
 for (const file of TARGETS) {
   const path = resolve(ROOT, file);
-  const lines = readFileSync(path, 'utf8').split('\n');
+  const { lines, eol } = readLines(path);
   const { start, end } = extractBlock(lines, file);
 
   const indent = lines[start].match(/^\s*/)[0];
@@ -61,7 +69,7 @@ for (const file of TARGETS) {
     drifted.push(file);
     continue;
   }
-  writeFileSync(path, [...lines.slice(0, start), ...block, ...lines.slice(end + 1)].join('\n'));
+  writeFileSync(path, [...lines.slice(0, start), ...block, ...lines.slice(end + 1)].join(eol));
   console.log(`synced ${file}`);
   written++;
 }
