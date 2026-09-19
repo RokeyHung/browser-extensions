@@ -4,6 +4,19 @@ Tất cả thay đổi đáng chú ý của extension **Popup Redirect Guard** �
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.1.4] - 2026-09-19
+
+### Reverted
+
+- **Gỡ 1.1.2 (`isBrowserInitiated`) và 1.1.3 (toast) — code quay về hành vi 1.1.1.** Trong quá trình dùng thật, tab mới do **chính website** mở vẫn lọt qua guard đôi khi, sau khi 1.1.2 cho phép mọi navigation mà `transitionType`/qualifier trông như do trình duyệt khởi tạo. Lối tắt đó chạy ở cả nhánh popup: một tab mới mà Chrome không gán `link` thì được thả luôn, không qua heuristic gesture hay kiểm tra opener. Lập luận "trang không giả được transition" ở 1.1.2 mới chỉ được đo cho redirect cùng tab (`location.*`), chưa từng đo cho tab mở từ trang. Lần revert này chưa có số đo tái hiện; nó dựa trên báo cáo từ người dùng.
+- 1.1.3 được revert cùng vì nó xây trên 1.1.2 (phần hồi quy của nó giả định bookmark đã đi được).
+
+### Notes
+
+- **Các lỗi cũ quay lại, biết trước:** bấm bookmark hoặc gõ omnibox để rời site được bảo vệ lại bị kéo về (lỗi 1.1.2 đã sửa); `Always allow` lại chỉ lưu rule mà không mở trang; toast xếp hàng lại có thể hiện trên site đích sau `gave-up` (hai lỗi 1.1.3 đã sửa).
+- Nếu sửa lại lỗi bookmark, lối tắt theo transition chỉ nên áp cho nhánh same-tab, không cho nhánh tab mới — và phải đo `transitionType` của tab do `window.open` / `target="_blank"` mở trước khi tin nó.
+- Mục 1.1.2 và 1.1.3 bên dưới được giữ nguyên làm lịch sử; spec đã quay về nội dung của 1.1.1.
+
 ## [1.1.3] - 2026-09-11
 
 ### Fixed

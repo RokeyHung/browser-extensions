@@ -208,7 +208,7 @@ https://ads-example.com/landing
 [Open once] [Always allow] [Dismiss]
 ```
 
-Toast tự ẩn sau 5 giây nếu user không tương tác, hoặc ngay khi tab rời trang đã sinh ra nó (§16).
+Toast tự ẩn sau 5 giây nếu user không tương tác.
 
 ## 5.3. Blocked attempts dashboard
 
@@ -503,24 +503,6 @@ Dùng `chrome.webNavigation.onCommitted` để phát hiện tab vừa chuyển s
 | `location.href =`  | `[]`                   |
 
 Đòi `client_redirect` — như bản trước 1.1.1 — cho lọt thẳng 2 trong 3 cách. Thứ thực sự phân biệt "script redirect" với "user bấm link" là **user vừa tương tác hay chưa**: content script báo mỗi `pointerdown`/`keydown` (throttle 250ms) về worker, và navigation không có gesture trong `USER_GESTURE_WINDOW_MS` (1500ms) được coi là của script.
-
-#### Navigation do chính trình duyệt khởi tạo thì bỏ qua hẳn
-
-Heuristic gesture ở trên chỉ nhìn thấy tương tác **bên trong trang**. Bấm bookmark, gõ omnibox, back/forward, reload đều không sinh `pointerdown`/`keydown` nào trong page, nên tới 1.1.1 chúng bị tính là của script và tab bị kéo ngược lại — đứng ở site được bảo vệ thì **không rời đi bằng bookmark được nữa**.
-
-Vì vậy `isBrowserInitiated(details)` được kiểm tra **trước** heuristic gesture, ở cả nhánh same-tab lẫn nhánh popup:
-
-| Nguồn                       | `transitionType` / qualifier                                             | Xử lý      |
-| --------------------------- | ------------------------------------------------------------------------ | ---------- |
-| Bookmark                    | `auto_bookmark`                                                          | cho qua    |
-| Omnibox / search từ omnibox | `typed`, `generated`, `keyword`, `keyword_generated`, `from_address_bar` | cho qua    |
-| Back / Forward              | qualifier `forward_back`                                                 | cho qua    |
-| Reload, trang chủ           | `reload`, `start_page`                                                   | cho qua    |
-| Trang tự làm (link, script) | `link`                                                                   | xét như cũ |
-
-Trang **không giả được** những giá trị này: `transitionType` do phía khởi tạo navigation bên trong trình duyệt gán. Đo trên Chrome 152, mọi cách redirect trong page — `location.href`, `location.assign`, `location.replace` — đều commit là `link`, **kể cả khi trang đó vừa được mở bằng `typed` hoặc `auto_bookmark`**: transition của lượt vào không truyền sang redirect mà trang bắn ra sau đó. Nên tin danh sách trên không mất chút coverage nào.
-
-Riêng qualifier `client_redirect` được cho quyền phủ quyết `transitionType`: nó là chính trang khai đây là redirect của mình. Chrome 152 không truyền transition sang client redirect, nhưng không nên phụ thuộc vào việc đó giữ nguyên mãi.
 
 State theo tab (`prevUrl`, opener, thời điểm gesture) nằm trong **`chrome.storage.session`**, không phải `Map` trong bộ nhớ: MV3 tắt worker khi rảnh, mà chính navigation cần kiểm tra lại thường là thứ đánh thức worker — để trong `Map` thì sau mỗi lần worker ngủ, navigation đầu tiên của tab không có `prevUrl` để so và được cho qua.
 
@@ -945,10 +927,7 @@ https://ads-example.com/landing
 
 3. User click.
 4. Extension thêm target hostname vào allowlist cho source site.
-5. Extension **mở URL bị chặn**, đúng cách `Open once` mở — rồi ẩn toast.
-6. Lần sau target domain đó không bị chặn.
-
-Bước 5 là bắt buộc chứ không phải tiện tay: allowlist chưa bao giờ là thứ user muốn, trang mới là. `Always allow` mà chỉ ẩn toast thì bắt user tự đi tìm lại link vừa bị chặn, và với scripted redirect thì **không còn link nào để tìm**. Mở sau khi rule đã lưu xong, không mở trước, để guard không chặn đúng cái navigation user vừa cho phép.
+5. Lần sau target domain đó không bị chặn.
 
 ## 15. Logic quyết định block
 
@@ -1008,15 +987,6 @@ ads-example.com
 
 [View] [Dismiss]
 ```
-
-### Toast thuộc về đúng một trang
-
-Toast nói về **một** lần chặn trên **một** trang. Rời trang đó là nó hết chuyện để nói, nên phải biến mất ngay, không đợi hết 5 giây:
-
-- Content script `dismissToast()` ở `pagehide`. Trang có vào bfcache — đo được instance document sống sót qua một lần Back — nên timer 5s bị đóng băng trong đó có thể trả toast lại khi user quay về.
-- Toast xếp hàng trong `pendingToasts` chỉ được giao cho **đúng trang đã sinh ra nó**: `getSiteConfig` lọc theo `sourceHostname`, phần còn lại bị bỏ chứ không giữ tiếp.
-
-Lọc theo `sourceHostname` là bắt buộc vì toast xếp hàng đợi **lần load kế tiếp của tab**, mà lần load đó không phải lúc nào cũng là lần khôi phục nó được xếp cho. Khi cầu dao (§8.4) bỏ cuộc, tab nằm lại ở chính site đích của redirect, và toast báo "chặn khi rời site được bảo vệ" sẽ nổi lên trên site lạ đó — đo trên Chrome 152: sau khi `gave-up`, lần load kế tiếp của tab ở `site-b.test` hiện toast `Blocked unwanted popup / site-b.test`, đứng đủ 5 giây.
 
 ## 17. Options page
 
@@ -1212,7 +1182,7 @@ Khi user click `Open once`, extension mở URL bị chặn một lần và khôn
 
 ### AC-07: Always allow
 
-Khi user click `Always allow`, extension thêm target domain vào allowlist cho source site, mở URL bị chặn, rồi ẩn toast.
+Khi user click `Always allow`, extension thêm target domain vào allowlist cho source site.
 
 ### AC-08: Strict mode
 
