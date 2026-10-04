@@ -235,21 +235,22 @@ Chrome Manifest V3 cần các permission chính:
 
 ```json
 {
-  "permissions": ["activeTab", "scripting", "cookies", "browsingData", "tabs"],
+  "permissions": ["activeTab", "scripting", "cookies", "browsingData", "tabs", "storage"],
   "host_permissions": ["<all_urls>"]
 }
 ```
 
 ### Giải thích
 
-| Permission         | Mục đích                                                     |
-| ------------------ | ------------------------------------------------------------ |
-| `activeTab`        | Lấy quyền tạm thời với tab hiện tại khi user click extension |
-| `scripting`        | Inject script để clear storage phía page                     |
-| `cookies`          | Xoá cookies của current domain                               |
-| `browsingData`     | Xoá dữ liệu browser lưu theo origin                          |
-| `tabs`             | Đọc URL của active tab và reload tab                         |
-| `host_permissions` | Cho phép thao tác với website được chỉ định                  |
+| Permission         | Mục đích                                                         |
+| ------------------ | ---------------------------------------------------------------- |
+| `activeTab`        | Lấy quyền tạm thời với tab hiện tại khi user click extension     |
+| `scripting`        | Inject script để clear storage phía page                         |
+| `cookies`          | Xoá cookies của current domain                                   |
+| `browsingData`     | Xoá dữ liệu browser lưu theo origin                              |
+| `tabs`             | Đọc URL của active tab và reload tab                             |
+| `storage`          | Lưu lựa chọn checkbox của popup vào `chrome.storage.local` (§10) |
+| `host_permissions` | Cho phép thao tác với website được chỉ định                      |
 
 Nếu muốn giảm quyền, có thể dùng `activeTab` trước, sau đó chỉ request permission khi cần.
 
@@ -263,7 +264,7 @@ extension/
 ├── popup.html
 ├── popup.js
 ├── background.js
-├── cleaner.js
+├── domain-utils.js
 ├── icons/
 │   ├── icon16.png
 │   ├── icon48.png
@@ -296,9 +297,13 @@ Phụ trách:
 - Inject script vào tab thông qua `chrome.scripting.executeScript`.
 - Reload tab nếu cần.
 
-#### `cleaner.js`
+#### `domain-utils.js`
 
-Script chạy trong page context để clear:
+Classic script nạp ở cả hai nơi: `<script>` trong `popup.html` và `importScripts()` trong `background.js`. Chứa phần tách eTLD+1 (khối `shared:domain-suffix` được sync từ `shared/domain-suffix.js`, không sửa tay) và các helper site label / wildcard của §2.1.
+
+#### `clearPageData()` (trong `background.js`)
+
+Không có file riêng: hàm nằm trong `background.js` và được truyền qua `chrome.scripting.executeScript({ func: clearPageData })`, chạy trong page context để clear:
 
 ```js
 localStorage.clear();
@@ -488,16 +493,26 @@ Extension không được:
 - Tự động clear data khi user chưa click.
 - Clear website khác ngoài website hiện tại nếu user không xác nhận.
 
-Extension chỉ nên lưu setting local như:
+Extension chỉ lưu đúng một key `settings` trong `chrome.storage.local` — trạng thái các checkbox của popup:
 
 ```json
 {
-  "defaultSelectedDataTypes": ["cookies", "localStorage", "sessionStorage", "indexedDB", "cacheStorage"],
-  "reloadAfterCleaning": true
+  "settings": {
+    "cookies": true,
+    "localStorage": true,
+    "sessionStorage": true,
+    "indexedDB": true,
+    "cacheStorage": true,
+    "serviceWorker": true,
+    "wildcardDomains": false,
+    "reload": true
+  }
 }
 ```
 
-Không lưu dữ liệu nhạy cảm.
+Giá trị trên là mặc định khi chưa có gì được lưu. `sessionStorage` là lựa chọn thật của user, kể cả lúc ô đang bị khoá bật (§8.3). Không lưu dữ liệu nhạy cảm.
+
+Chuỗi lỗi hiển thị trong popup (từ Chrome API bị reject hoặc exception ném ra trong trang) được gắn bằng `textContent`, không bao giờ parse thành HTML.
 
 ## 11. Acceptance criteria
 

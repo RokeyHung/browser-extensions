@@ -187,15 +187,13 @@ function setLoading(on) {
 function showResults(response, options) {
   const body = document.getElementById('resultsBody');
   const footer = document.getElementById('resultsFooter');
-  body.innerHTML = '';
+  body.replaceChildren();
 
   let hasError = false;
 
   for (const key of OPTION_KEYS) {
     if (!options[key]) continue;
     const r = response?.results?.[key];
-    const row = document.createElement('div');
-    row.className = 'result-row';
 
     let iconClass = 'success';
     let icon = '✓';
@@ -211,12 +209,7 @@ function showResults(response, options) {
       hasError = true;
     }
 
-    row.innerHTML = `
-      <span class="result-icon ${iconClass}">${icon}</span>
-      <span class="result-name">${LABEL_MAP[key]}</span>
-      ${msg ? `<span class="result-msg error">${msg}</span>` : ''}
-    `;
-    body.appendChild(row);
+    body.appendChild(resultRow(iconClass, icon, LABEL_MAP[key], msg));
   }
 
   renderScope(response?.scope);
@@ -258,9 +251,27 @@ function prettyUrl(url) {
   }
 }
 
+// One line of the result list. Error text comes from Chrome API rejections and
+// exceptions thrown inside the page, so it is set as text, never parsed as HTML
+// (spec §10).
+function resultRow(iconClass, icon, name, msg) {
+  const row = document.createElement('div');
+  row.className = 'result-row';
+  const add = (className, text) => {
+    const span = document.createElement('span');
+    span.className = className;
+    span.textContent = text;
+    row.appendChild(span);
+  };
+  add(`result-icon ${iconClass}`, icon);
+  add('result-name', name);
+  if (msg) add('result-msg error', msg);
+  return row;
+}
+
 function showError(msg) {
   const body = document.getElementById('resultsBody');
-  body.innerHTML = `<div class="result-row"><span class="result-icon error">✕</span><span class="result-name">${msg}</span></div>`;
+  body.replaceChildren(resultRow('error', '✕', msg));
   document.getElementById('resultsScope').textContent = '';
   document.getElementById('resultsFooter').textContent = '';
   document.getElementById('results').classList.add('visible');

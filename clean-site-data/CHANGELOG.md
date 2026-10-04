@@ -4,6 +4,22 @@ Tất cả thay đổi đáng chú ý của extension **Clean Site Data** đư�
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - 2026-10-04
+
+### Security
+
+- **Chuỗi lỗi trong popup bị parse thành HTML** — `showResults()` và `showError()` dựng dòng kết quả bằng template string gán vào `innerHTML`, chèn thẳng `r.error` / `err.message` vào. Các chuỗi này đến từ Chrome API bị reject và từ exception ném ra bên trong trang, tức là không do extension kiểm soát. Đo trên Chrome for Testing 154 bằng cách gọi thẳng hai hàm trong popup với lỗi `<img src=x data-probe=1><b>bold</b>`: trước khi sửa, `#resultsBody` sinh ra **2 element thật** (`img`, `b`) và chữ hiển thị chỉ còn `bold`; sau khi sửa là 0 element, chuỗi hiện nguyên văn. CSP mặc định của MV3 chặn script inline nên chưa thành XSS chạy được code, nhưng vẫn là HTML injection vào trang extension.
+- Sửa bằng một helper `resultRow()` dựng `span` bằng `createElement` + `textContent`, dùng chung cho cả hai đường. Không escape thủ công: escape là thứ dễ quên ở lần sửa sau, còn `textContent` thì không có cách nào parse nhầm. `.result-row` là flex có `gap`, nên mất khoảng trắng giữa các `span` không làm lệch layout.
+
+### Changed
+
+- Spec bắt kịp code: §6 thêm permission `storage` (manifest đã có từ trước, spec thì chưa); §7 bỏ `cleaner.js` — file chưa từng tồn tại, `clearPageData()` nằm trong `background.js` và được truyền qua `executeScript({ func })` — và thêm `domain-utils.js`; §10 thay ví dụ settings bịa (`defaultSelectedDataTypes`, `reloadAfterCleaning`) bằng đúng object `settings` mà popup lưu.
+
+### Notes
+
+- Chạy lại toàn bộ bộ kiểm chứng end-to-end qua CDP (fixture cục bộ + `--host-resolver-rules`, popup mở dạng tab nền): 202/202 assertion pass — gồm ma trận 6 ô, wildcard `*.zomsite.*`, ccSLD `.co.id`, khoá Session Storage, trang không hỗ trợ, worker bị stop rồi đánh thức lại, và 2 assertion mới cho việc render lỗi. Lượt này có tạo cookie HttpOnly và đã xác nhận nó bị xoá; cookie partitioned (CHIPS) vẫn chưa phủ vì cần fixture HTTPS.
+- Chrome 154 có sẵn component extension cũng chạy worker tên `background.js`, nên harness nhận diện extension qua `chrome.runtime.getManifest().name` thay vì URL của worker.
+
 ## [1.4.0] - 2026-09-01
 
 ### Added
