@@ -259,16 +259,18 @@ Chặn:
 
 - `window.open` sang external domain.
 - Tab mới không do user gesture rõ ràng.
-- Redirect external xảy ra ngay sau click vào vùng không phải link.
-- Link `_blank` external đáng ngờ.
+- Redirect external xảy ra ngay sau click vào vùng không phải link. "Vùng là link" nghĩa là `a[href]` / `area[href]`, hoặc nút submit của form (kể cả Enter trong ô của form) — content script gửi kèm `onLink` trong message `userGesture` (§8.4). Click vào player, overlay, nút thường… không tính: đó đúng là chiêu pop-under (mở phim ở tab mới, đẩy tab hiện tại sang quảng cáo).
+- Link mở tab mới (mọi `target` không phải `_self`/`_parent`/`_top` hay tên một frame có sẵn — xem §8.3) sang external.
 - Form submit external đáng ngờ.
 
 Cho phép:
 
 - Same-site navigation.
 - Same-site tab mới.
-- User click trực tiếp vào link external rõ ràng nếu option cho phép.
+- User click trực tiếp vào link external rõ ràng (cùng tab) — kể cả link same-site rồi server redirect ra ngoài.
 - Whitelisted domains.
+
+Hệ quả cần biết: nút không phải link mà chuyển trang ra ngoài bằng script (ví dụ "Đăng nhập bằng Google" dùng `location.href = …`) bị chặn trong normal mode; user dùng `Open once` hoặc `Always allow`.
 
 ## 6.2. Strict mode
 
@@ -419,6 +421,18 @@ Yêu cầu:
 - Cho phép nếu user chọn `Open once`.
 - Ghi log reason là `window.open`.
 
+### Mỗi realm một bản vá
+
+Mỗi frame cùng origin tạo động (`about:blank`, `srcdoc`) là một realm mới với `window.open`, `HTMLFormElement.prototype.submit`… nguyên bản. Content script tới frame đó muộn (hoặc không tới), và tới rồi cũng chưa có config, nên `iframe.contentWindow.open(ad)` ngay sau `appendChild` lọt qua. Vì vậy `injected-guard.js` vá theo realm (`guardRealm(win)`) và vá luôn getter `HTMLIFrameElement.prototype.contentWindow` / `contentDocument`: lần đầu trang chạm vào frame con cùng origin, frame đó được vá **đồng bộ** bằng chính config của frame cha. Frame khác origin thì không vá được (và không cần — xem §8.2).
+
+Ngoài `window.open`, mỗi realm được vá:
+
+- **Click vào link detached**: `a.click()` / `a.dispatchEvent(click)` trên `<a>` chưa gắn vào document không đi qua listener capture ở `document` của content script, nên vá `HTMLElement.prototype.click` và `EventTarget.prototype.dispatchEvent` (chỉ khi event là `click` và link `!isConnected`). Link đã gắn vào document vẫn do content script xử lý.
+- **`form.submit()`**: không phát event `submit` (đúng spec HTML), xem §8.7.
+- **Getter frame con** như trên, để realm lồng nhau cũng được vá.
+
+Manifest khai báo `match_origin_as_fallback: true` cho cả hai content script, để frame `about:blank`/`srcdoc`/`data:` cũng có content script (bắt click, gửi gesture). Đó là lớp phụ; lớp chính cho trường hợp đồng bộ là bản vá từ frame cha.
+
 ## 8.2. Intercept click event
 
 Content script listen click event ở capture phase:
@@ -438,6 +452,14 @@ Nếu click vào link external:
 
 - Normal mode: có thể cho phép nếu link rõ ràng.
 - Strict mode: chặn và hỏi user.
+
+Tìm link bằng `event.composedPath()`, không phải `event.target.closest()`: khi tới `document`, target đã bị retarget về shadow host nên link nằm trong shadow root không bao giờ được thấy. Shadow root `closed` không lộ trong `composedPath()` — trường hợp đó để lớp background (§8.5).
+
+### Subframe mang rule của tab
+
+Frame con (player, iframe quảng cáo) được đánh giá theo **tab chứa nó**, giống hệt cách lớp background đánh giá tab mới (§8.5): `getSiteConfig` và `reportBlocked` từ frame có `frameId !== 0` dùng `sender.tab.url` (do trình duyệt cung cấp, frame không giả được) thay cho URL của frame. Config có thêm `siteOrigin` (origin của tab); so sánh same-origin dùng `siteOrigin` chứ không dùng origin của frame — trong iframe của ad network, "cùng origin với tôi" chính là ad network.
+
+Nhưng navigation **nằm trong frame** (player tải trang tiếp theo từ CDN của nó) không phải tab rời site, nên trong subframe chỉ link/form **mở tab mới** hoặc nhắm vào trang trên cùng (`_top`, hoặc `_parent` khi parent là top) mới bị xét. Frame không tự vẽ toast; worker gửi toast tới top frame của tab (`chrome.tabs.sendMessage(..., { frameId: 0 })`), và `pendingToasts` chỉ giao cho top frame.
 
 ## 8.3. Intercept anchor target `_blank`
 
@@ -460,6 +482,8 @@ Behavior đề xuất:
 | Normal    | Chặn nếu domain không whitelist và link đáng ngờ |
 | Strict    | Chặn tất cả external `_blank`                    |
 | Whitelist | Cho phép                                         |
+
+"`_blank`" ở đây nghĩa là **mọi target mở tab mới**: bất kỳ tên nào không phải `_self`, `_parent`, `_top` và không trùng `name` của một `iframe`/`frame` có sẵn trên trang (ví dụ `target="_new"`), cùng Ctrl/⌘/Shift+click.
 
 ## 8.4. Block scripted redirect
 
@@ -503,6 +527,8 @@ Dùng `chrome.webNavigation.onCommitted` để phát hiện tab vừa chuyển s
 | `location.href =`  | `[]`                   |
 
 Đòi `client_redirect` — như bản trước 1.1.1 — cho lọt thẳng 2 trong 3 cách. Thứ thực sự phân biệt "script redirect" với "user bấm link" là **user vừa tương tác hay chưa**: content script báo mỗi `pointerdown`/`keydown` (throttle 250ms) về worker, và navigation không có gesture trong `USER_GESTURE_WINDOW_MS` (1500ms) được coi là của script.
+
+Message là `{ type: 'userGesture', onLink }`; worker lưu `{ at, onLink }` theo tab. Chỉ gesture có `onLink: true` (link, hoặc nút submit/Enter trong form — §6.1) mới làm normal mode cho qua redirect external. Giá trị `onLink` đổi thì gửi ngay, không chờ throttle.
 
 State theo tab (`prevUrl`, opener, thời điểm gesture) nằm trong **`chrome.storage.session`**, không phải `Map` trong bộ nhớ: MV3 tắt worker khi rảnh, mà chính navigation cần kiểm tra lại thường là thứ đánh thức worker — để trong `Map` thì sau mỗi lần worker ngủ, navigation đầu tiên của tab không có `prevUrl` để so và được cho qua.
 
@@ -565,6 +591,13 @@ focus opener tab
 log blocked attempt
 ```
 
+Hai điểm vào, cùng một hàm quyết định:
+
+1. `webNavigation.onCreatedNavigationTarget` — có URL đích và `sourceTabId` **trước khi** navigation commit. Đóng ở đây thì trang quảng cáo thường không kịp commit (đo: 2/10 lần, so với 10/10 khi chỉ đóng ở commit), nhưng request tới quảng cáo vẫn đã đi — MV3 không huỷ được nếu không dùng `declarativeNetRequest`. Tab vẫn chớp lên một thoáng vì worker không ngăn được việc tạo tab; đây là lý do lớp trong trang (§8.1–§8.3, §8.7) mới là lớp chính.
+2. `webNavigation.onCommitted` với tab có opener (ghi từ `tabs.onCreated`) — cho tab mở bằng `about:blank` rồi mới đổi URL.
+
+URL không phải http/https (`about:blank`) **không được quyết định** và không xoá bản ghi opener: `window.open('')` commit `about:blank` trước, và nếu lần commit đó xoá opener ("không phải web, cho qua") thì navigation sang quảng cáo ngay sau đó bị coi như navigation cùng tab từ `about:blank` và lọt. Tập `closingTabs` trong bộ nhớ đảm bảo hai điểm vào không cùng log/toast một tab.
+
 ## 8.6. Block pop-under
 
 Pop-under là hành vi:
@@ -595,6 +628,8 @@ Behavior:
   - Normal: confirm hoặc block nếu target `_blank`.
   - Strict: block.
   - Whitelisted: allow.
+
+Hai đường submit: event `submit` (submit thật, `requestSubmit()`) do content script bắt ở capture phase; `form.submit()` **không** phát event nên được vá ở `HTMLFormElement.prototype.submit` trong MAIN world (§8.1). Trong subframe chỉ xét form mở tab mới hoặc nhắm `_top` (§8.2).
 
 ## 9. Whitelist / allowlist
 
@@ -811,11 +846,9 @@ Phụ trách:
 
 Phụ trách can thiệp vào page context:
 
-- Override `window.open`.
-- Guard `location.assign`.
-- Guard `location.replace`.
-- Có thể guard một số pattern redirect phổ biến.
-- Dispatch custom event về content script khi block.
+- Override `window.open`, `form.submit()` và click vào link detached, ở realm của mình và mọi frame con cùng origin (§8.1).
+- **Không** guard `location.*` — không vá được (§8.4).
+- `postMessage` về content script khi block.
 
 ## 13.5. `domain-matcher.js`
 

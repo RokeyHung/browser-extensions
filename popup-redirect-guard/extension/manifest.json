@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Popup Redirect Guard",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "Block websites from opening unwanted tabs, popups, pop-unders and redirecting you to other sites.",
   "permissions": ["activeTab", "scripting", "storage", "tabs", "webNavigation"],
   "host_permissions": ["http://*/*", "https://*/*"],
@@ -22,13 +22,15 @@
       "js": ["modules/domain-matcher.js", "content.js"],
       "css": ["styles/toast.css"],
       "run_at": "document_start",
-      "all_frames": true
+      "all_frames": true,
+      "match_origin_as_fallback": true
     },
     {
       "matches": ["http://*/*", "https://*/*"],
       "js": ["injected-guard.js"],
       "run_at": "document_start",
       "all_frames": true,
+      "match_origin_as_fallback": true,
       "world": "MAIN"
     }
   ],

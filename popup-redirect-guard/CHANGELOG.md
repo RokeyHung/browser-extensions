@@ -4,6 +4,33 @@ Tất cả thay đổi đáng chú ý của extension **Popup Redirect Guard** �
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.1.5] - 2026-10-04
+
+### Fixed
+
+- **Strict mode vẫn "mở tab rồi đóng ngay" trên web phim** — đó không phải guard chập chờn mà là lớp dự phòng ở worker (§8.5, đóng tab sau khi commit) đang gánh việc của lớp trong trang. Đo bằng fixture "web phim" với 11 cách mở quảng cáo, mỗi cách kích hoạt bằng một click chuột thật: ở 1.1.4, strict chặn trước được 3/11, normal 2/11; còn lại tab quảng cáo mở ra, trang quảng cáo commit ở ~25–39ms và tab bị đóng ở ~38–56ms. Các lỗ, từng cái một:
+  - **Iframe khác domain (player, iframe quảng cáo)** — content script trong frame hỏi config bằng URL của chính frame, mà domain player không có rule, nên `active: false` và `window.open` của nó đi thẳng. Nhiều khả năng đây là nguyên nhân chính trên web phim thật, vì player gần như luôn nhúng từ domain khác. Nay frame được đánh giá theo tab chứa nó (`sender.tab.url`), giống hệt lớp worker vốn đã làm, và so same-origin theo `siteOrigin` của tab.
+  - **`iframe.contentWindow.open()` từ iframe `about:blank`** — realm mới, `window.open` nguyên bản, không có content script. Nay frame cha vá frame con đồng bộ qua getter `contentWindow`/`contentDocument`, và manifest thêm `match_origin_as_fallback`.
+  - **Link trong shadow DOM** — tới `document` thì target đã bị retarget về shadow host, `closest('a[href]')` không thấy gì. Nay dùng `composedPath()`.
+  - **`a.click()` trên link chưa gắn vào trang** — event chạy trên cây detached, không tới listener ở `document`. Nay vá `HTMLElement.prototype.click` / `EventTarget.prototype.dispatchEvent` cho đúng trường hợp đó.
+  - **`form.submit()`** — không phát event `submit`. Nay vá `HTMLFormElement.prototype.submit`.
+  - **`target="_new"` trong normal mode** — chỉ chuỗi `_blank` được tính là mở tab mới. Nay mọi tên không phải keyword và không trùng frame có sẵn đều tính.
+  - Sau khi sửa, cả 8 cách trên đều bị chặn **trước khi có tab** ở cả hai mode (`adHits=0`), có toast trên trang chính kể cả khi lệnh chặn xảy ra trong iframe.
+- **`window.open('')` rồi `w.location = ad` lọt hẳn, tab quảng cáo ở lại, không log** — 3/10 lần ở 1.1.4 (normal). Probe trong worker cho thấy Chrome có báo commit `about:blank` của tab mới; nhánh popup coi đó là "không phải web, cho qua" và **xoá bản ghi opener**, đua với commit sang quảng cáo ngay sau đó — lượt xoá thắng thì commit quảng cáo bị coi là navigation cùng tab từ `about:blank`, không có rule, đi qua. Nay URL không phải http/https không được quyết định và giữ nguyên bản ghi opener: 0/10. (Đã thử thêm `onBeforeNavigate` — cũng ra 0/10 nhưng chỉ vì thắng cuộc đua, không đóng sớm hơn, nên bỏ.)
+- **Normal mode cho pop-under kinh điển đi qua** — click vào player (không phải link) mở phim ở tab mới và đẩy tab hiện tại sang quảng cáo; redirect đó "có gesture" nên được cho qua, tab gốc nằm lại ở trang quảng cáo. Trái với §6.1 ("redirect external ngay sau click vào vùng không phải link" phải bị chặn). Nay `userGesture` gửi kèm `onLink`, và chỉ gesture vào link / nút submit mới cho qua redirect external. Đo: tab gốc được đưa về `site-a.test`, log `scripted redirect external`.
+
+### Changed
+
+- Lớp worker đóng tab mới ngay ở `webNavigation.onCreatedNavigationTarget` (trước commit) thay vì chỉ ở `onCommitted`. Đo 10 lần trên đường duy nhất vẫn phải nhờ worker (link `_blank` trong shadow root **closed**): trang quảng cáo commit trong tab 10/10 → 2/10, tab đóng ở 42–48ms → 32–41ms. Request tới quảng cáo **vẫn đi** 10/10 — huỷ nó cần `declarativeNetRequest`.
+- Toast từ worker chỉ gửi tới top frame (`frameId: 0`), và `pendingToasts` chỉ giao cho top frame: subframe giờ cũng chạy content script và trước đây có thể nhận rồi bỏ toast.
+
+### Notes
+
+- **Đánh đổi có chủ đích ở normal mode:** nút không phải link mà chuyển trang ra ngoài bằng script (ví dụ "Đăng nhập bằng Google" dùng `location.href`) giờ bị chặn; dùng `Open once` / `Always allow`.
+- **Hồi quy đo lại, không đổi so với 1.1.4:** `window.open` same-site vẫn mở; link external cùng tab và link same-site có server redirect ra ngoài vẫn đi được ở normal (strict chặn, như cũ); link trong iframe player điều hướng chính iframe sang domain CDN vẫn đi được ở cả hai mode.
+- **Còn lại, biết trước:** `window.open('')` rồi đổi `location` vẫn chớp tab ~50ms (lớp trang không thấy được, `location` không vá được — §8.4); link trong shadow root closed vẫn nhờ worker; tab con same-site bị script đổi sang quảng cáo vẫn hiện quảng cáo ~30ms trước khi bị đưa về. Toast sau khi khôi phục redirect cùng tab vẫn không hiện — lỗi đã ghi ở 1.1.4 (revert 1.1.3), đo lại trên 1.1.4 cho cùng kết quả.
+- Harness: Chrome 154 stable, profile trống, `--remote-debugging-pipe --enable-unsafe-extension-debugging` + CDP `Extensions.loadUnpacked`, `--disable-popup-blocking`, domain giả qua `--host-resolver-rules`. Mỗi cách mở chạy trong tab mới, click thật bằng `Input.dispatchMouseEvent`; server đếm request tới domain quảng cáo. Lưu ý khi đo lại: tạo rule qua `Runtime.evaluate` trong worker **ngay** khi target worker xuất hiện có thể chạy trước `importScripts` — rule không được ghi và cả lượt đo ra "không chặn gì". Phải đợi `StorageRepo` tồn tại rồi kiểm tra rule đã active.
+
 ## [1.1.4] - 2026-09-19
 
 ### Reverted

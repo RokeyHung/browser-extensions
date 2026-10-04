@@ -102,10 +102,30 @@ async function buildSiteConfig(url) {
     ruleId: ctx.rule ? ctx.rule.id : null,
     sitePattern: ctx.rule ? ctx.rule.sitePattern : null,
     sourceHostname: hostname,
+    siteOrigin: originOf(url),
     baseDomain: DM.getBaseDomain(hostname),
     settings: ctx.settings,
     allowedHosts,
   };
+}
+
+function originOf(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return '';
+  }
+}
+
+// The page a message speaks for. A subframe is judged by the tab it sits in,
+// as the new-tab guard below already judges it: a player or ad iframe from
+// another domain has no rule of its own, so until 1.1.5 its content script got
+// `active: false` and its window.open went straight through to the worker,
+// which closed the tab after it had opened (spec §8.2). sender.tab.url comes
+// from the browser, not from the frame.
+function siteUrlFor(sender, claimedUrl) {
+  if (sender.tab && sender.frameId !== 0 && sender.tab.url) return sender.tab.url;
+  return claimedUrl || (sender.tab && sender.tab.url);
 }
 
 // ─── Blocked-attempt logging ─────────────────────────────────────────────────
@@ -137,6 +157,25 @@ chrome.tabs.onCreated.addListener(async (tab) => {
   }
 });
 
+// Tabs this worker has closed, so the early path and the commit path below
+// never both log and toast the same tab. Entries are not dropped in onRemoved:
+// the commit path's event can still be in flight after removal, and tab ids are
+// not reused within a session. Losing the set to a worker restart costs at most
+// one duplicate log entry — the second tabs.remove() just fails.
+const closingTabs = new Set();
+
+// Chrome announces a tab opened by a page here, with its target URL, before the
+// navigation commits. Closing at commit — the only path until 1.1.5 — let the
+// ad page commit first in 10 of 10 measured runs (tab closed 42–48ms after the
+// click); closing here, it committed in 2 of 10 (closed 32–41ms). The ad
+// request itself still goes out: cancelling it would take declarativeNetRequest.
+// A tab that starts on about:blank (`window.open('')` then `w.location = ad`)
+// has nothing to judge yet and is left to the commit path.
+chrome.webNavigation.onCreatedNavigationTarget.addListener(async (details) => {
+  if (!/^https?:/i.test(details.url)) return;
+  await handleOpenedTab(details.tabId, details.url, details.sourceTabId);
+});
+
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   await Session.patch(SESSION_KEYS.opener, tabId, undefined);
   await Session.patch(SESSION_KEYS.lastUrl, tabId, undefined);
@@ -159,7 +198,7 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   // Case A: tab was opened by another tab → maybe an unwanted popup.
   const openers = await Session.get(SESSION_KEYS.opener);
   if (openers[tabId] != null) {
-    await handleOpenedTab(tabId, url, details, openers[tabId]);
+    await handleOpenedTab(tabId, url, openers[tabId]);
     return;
   }
 
@@ -167,7 +206,15 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   await handleSameTabNavigation(tabId, url, prevUrl);
 });
 
-async function handleOpenedTab(tabId, targetUrl, details, openerTabId) {
+async function handleOpenedTab(tabId, targetUrl, openerTabId) {
+  // `window.open('')` commits about:blank first, and that commit used to be
+  // judged — "not a web URL, allow" — which deleted the opener record. The ad
+  // navigation that follows races it: measured, when the delete landed first
+  // the ad commit looked like a same-tab navigation from about:blank and the ad
+  // tab stayed open with nothing logged, in 3 of 10 runs. about:blank is not a
+  // destination; keep the record for the navigation that is.
+  if (!/^https?:/i.test(targetUrl)) return;
+
   let openerTab;
   try {
     openerTab = await chrome.tabs.get(openerTabId);
@@ -189,6 +236,8 @@ async function handleOpenedTab(tabId, targetUrl, details, openerTabId) {
   }
 
   // Close the unwanted tab, refocus the opener, notify + log.
+  if (closingTabs.has(tabId)) return;
+  closingTabs.add(tabId);
   try {
     await chrome.tabs.remove(tabId);
   } catch {
@@ -241,8 +290,12 @@ async function handleSameTabNavigation(tabId, url, prevUrl) {
   // forms straight through. What actually separates a redirect from a user
   // following a link is whether the user just did something, which the content
   // script reports; a navigation with no recent gesture is the script's.
-  const gestures = await Session.get(SESSION_KEYS.gesture);
-  const hasUserGesture = Date.now() - (gestures[tabId] || 0) < USER_GESTURE_WINDOW_MS;
+  //
+  // And only interaction aimed at a link or a submit control counts. A click on
+  // the player that opens a tab and sends this one to an ad is interaction too,
+  // and in normal mode it let the pop-under redirect stay (spec §6.1).
+  const gesture = (await Session.get(SESSION_KEYS.gesture))[tabId];
+  const hasUserGesture = !!gesture && gesture.onLink === true && Date.now() - gesture.at < USER_GESTURE_WINDOW_MS;
 
   const decision = NG.decide({ sourceUrl: prevUrl, targetUrl: url, trigger: 'scripted-redirect', mode: ctx.rule.mode, hasUserGesture }, ctx);
   if (decision.action !== 'block') return;
@@ -291,7 +344,9 @@ async function handleSameTabNavigation(tabId, url, prevUrl) {
 // ─── Toast delivery ──────────────────────────────────────────────────────────
 
 function sendToast(tabId, payload) {
-  chrome.tabs.sendMessage(tabId, { type: 'guardToast', payload }).catch(() => {
+  // Top frame only: subframes now run the content script too (about:blank ads
+  // included) and would answer for a toast they never draw.
+  chrome.tabs.sendMessage(tabId, { type: 'guardToast', payload }, { frameId: 0 }).catch(() => {
     // Content not ready — queue for next load.
     queueToast(tabId, payload);
   });
@@ -309,17 +364,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   switch (msg.type) {
     case 'userGesture': {
       const tabId = sender?.tab?.id;
-      if (tabId != null) Session.patch(SESSION_KEYS.gesture, tabId, Date.now());
+      if (tabId != null) Session.patch(SESSION_KEYS.gesture, tabId, { at: Date.now(), onLink: msg.onLink === true });
       sendResponse({ ok: true });
       return false;
     }
 
     case 'getSiteConfig': {
-      const url = msg.url || (sender.tab && sender.tab.url);
+      const url = siteUrlFor(sender, msg.url);
       (async () => {
         const config = await buildSiteConfig(url);
         // Attach any toasts queued for this tab (e.g. after a redirect restore).
-        if (sender.tab) {
+        // Only the top frame draws toasts; a subframe asking first used to take
+        // them and drop them.
+        if (sender.tab && sender.frameId === 0) {
           const queued = pendingToasts.get(sender.tab.id);
           if (queued && queued.length) {
             config.pendingToasts = queued;
@@ -333,10 +390,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     case 'reportBlocked': {
       (async () => {
-        const ctx = await getContext(msg.sourceUrl);
+        const sourceUrl = siteUrlFor(sender, msg.sourceUrl);
+        const ctx = await getContext(sourceUrl);
         const result = await recordBlocked(
           {
-            sourceUrl: msg.sourceUrl,
+            sourceUrl,
             targetUrl: msg.targetUrl,
             reason: msg.reason,
             mode: ctx.rule ? ctx.rule.mode : 'normal',
@@ -344,6 +402,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           },
           { rateLimit: true }
         );
+        // A subframe cannot draw the toast itself; the top frame of its tab does.
+        if (sender.tab && sender.frameId !== 0 && result.show && ctx.settings.showToast !== false) {
+          sendToast(sender.tab.id, {
+            targetUrl: msg.targetUrl,
+            targetHostname: DM.safeHostname(msg.targetUrl) || msg.targetUrl,
+            reason: msg.reason,
+            sourceHostname: DM.safeHostname(sourceUrl),
+            suppressed: result.suppressed,
+          });
+        }
         sendResponse({ logged: true, show: result.show, suppressed: result.suppressed });
       })();
       return true;

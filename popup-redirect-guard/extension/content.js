@@ -25,12 +25,36 @@
   // that does separate them. Throttled because it fires on every keystroke, and
   // sent regardless of `config.active` so the worker's own guard does not depend
   // on this page's config having arrived yet.
+  //
+  // Interaction alone is not enough: the classic pop-under is a click on the
+  // player — not a link — that opens the film in a new tab and sends this tab to
+  // the ad. Measured in normal mode, that redirect rode the click's gesture and
+  // stayed. So the gesture also says whether it was aimed at something that
+  // navigates (spec §6.1); a change of that answer bypasses the throttle.
   let lastGestureSent = 0;
-  function onUserGesture() {
+  let lastGestureOnLink = null;
+  function onUserGesture(e) {
+    const onLink = isNavigationGesture(e);
     const now = Date.now();
-    if (now - lastGestureSent < 250) return;
+    if (now - lastGestureSent < 250 && onLink === lastGestureOnLink) return;
     lastGestureSent = now;
-    sendMessage({ type: 'userGesture' });
+    lastGestureOnLink = onLink;
+    sendMessage({ type: 'userGesture', onLink });
+  }
+
+  // A link, or a control that submits a form: something the user pointed at
+  // knowing it goes somewhere.
+  function isNavigationGesture(e) {
+    if (e.type === 'keydown') {
+      let el = document.activeElement;
+      while (el && el.shadowRoot && el.shadowRoot.activeElement) el = el.shadowRoot.activeElement;
+      if (!el || !el.closest) return false;
+      return !!el.closest('a[href], area[href]') || (e.key === 'Enter' && !!el.form);
+    }
+    if (findAnchor(e)) return true;
+    const origin = e.composedPath ? e.composedPath()[0] : e.target;
+    const control = origin && origin.closest ? origin.closest('button, input') : null;
+    return !!(control && control.form && (control.type === 'submit' || control.type === 'image'));
   }
 
   // ─── Extension context lifetime ─────────────────────────────────────────
@@ -96,6 +120,7 @@
         config: {
           active: config.active,
           mode: config.mode,
+          siteOrigin: config.siteOrigin,
           baseDomain: config.baseDomain,
           allowedHosts: config.allowedHosts || [],
           settings: config.settings || {},
@@ -125,7 +150,8 @@
       return { block: true, reason: 'invalid target URL' };
     }
     if (target.protocol !== 'http:' && target.protocol !== 'https:') return { block: false };
-    if (target.origin === location.origin) return { block: false };
+    // The tab's site, not this frame's — see injected-guard.js.
+    if (target.origin === (config.siteOrigin || location.origin)) return { block: false };
 
     const host = target.hostname.toLowerCase();
     if (baseDomain(host) === config.baseDomain) return { block: false };
@@ -139,20 +165,55 @@
     return { block: true, reason, targetUrl: target.href };
   }
 
+  // ─── Where a link/form target lands (mirrored in injected-guard.js) ──────
+  const isTopFrame = window.top === window.self;
+
+  // Until 1.1.4 only the literal `_blank` counted, but any name that is not a
+  // keyword or an existing frame opens a new tab too: `target="_new"` was let
+  // through in normal mode and the worker had to close the tab after the fact.
+  function opensNewContext(target) {
+    const t = String(target || '').toLowerCase();
+    if (!t || t === '_self' || t === '_parent' || t === '_top') return false;
+    if (t === '_blank') return true;
+    return !Array.from(document.querySelectorAll('iframe[name], frame[name]')).some((f) => f.name === target);
+  }
+
+  // Subframes now carry the tab's rule (spec §8.2), but a navigation that stays
+  // inside the frame — a player loading its own CDN page — is not the tab
+  // leaving the site. Only one that takes over the top page is.
+  function landsInTab(target) {
+    const t = String(target || '').toLowerCase();
+    if (isTopFrame) return true;
+    return t === '_top' || (t === '_parent' && window.parent === window.top);
+  }
+
+  // The event's target is retargeted to the shadow host by the time it reaches
+  // `document`, so closest() from it never finds a link inside a shadow root —
+  // measured as a shadow-DOM `_blank` link opening its tab. composedPath() still
+  // lists the real nodes for open roots; closed roots stay with the worker.
+  function findAnchor(e) {
+    const path = e.composedPath ? e.composedPath() : [];
+    for (const node of path) {
+      if (node instanceof Element && node.matches('a[href], area[href]')) return node;
+    }
+    return e.target && e.target.closest ? e.target.closest('a[href], area[href]') : null;
+  }
+
   // ─── Click interception (spec §8.2, §8.3) ────────────────────────────────
   function onClickCapture(e) {
     if (!config.active) return;
     // Check before any preventDefault: never block what we cannot report on.
     if (!contextAlive()) return standDown();
-    const anchor = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    const anchor = findAnchor(e);
     if (!anchor) return;
 
     const href = anchor.getAttribute('href');
     if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
 
-    const opensNewTab = anchor.target === '_blank' || e.ctrlKey || e.metaKey;
-    // In strict mode any external link is a candidate; in normal mode only _blank.
-    if (config.mode !== 'strict' && !opensNewTab) return;
+    const opensNewTab = opensNewContext(anchor.target) || e.ctrlKey || e.metaKey || e.shiftKey;
+    // In strict mode any external link that moves the tab is a candidate; in
+    // normal mode only one that opens a new tab.
+    if (!opensNewTab && (config.mode !== 'strict' || !landsInTab(anchor.target))) return;
 
     const decision = evaluate(href, 'blank-link');
     if (!decision.block) return;
@@ -170,6 +231,7 @@
     if (!form || form.tagName !== 'FORM') return;
     const action = form.getAttribute('action');
     if (!action) return;
+    if (!opensNewContext(form.target) && !landsInTab(form.target)) return;
 
     const decision = evaluate(action, 'form-submit');
     if (!decision.block) return;
