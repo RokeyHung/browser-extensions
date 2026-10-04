@@ -19,9 +19,13 @@ async function loadRules() {
 
 function renderRules() {
   const query = searchInput.value.toLowerCase().trim();
-  const filtered = query
-    ? allRules.filter((r) => r.domainPattern.toLowerCase().includes(query) || r.selector.toLowerCase().includes(query))
+  const forSite = siteFilter
+    ? allRules.filter((r) => typeof r.domainPattern === 'string' && RuleMatcher.matchDomainPattern(r.domainPattern, siteFilter))
     : allRules;
+  const filtered = query
+    ? // String(): a malformed rule imported before 1.2.1 must stay listed so it can be deleted
+      forSite.filter((r) => String(r.domainPattern).toLowerCase().includes(query) || String(r.selector).toLowerCase().includes(query))
+    : forSite;
 
   statsLabel.textContent = `${filtered.length} of ${allRules.length} filter${allRules.length !== 1 ? 's' : ''}`;
 
@@ -123,9 +127,11 @@ const editDomain = document.getElementById('edit-domain');
 const editSelector = document.getElementById('edit-selector');
 const editHideMode = document.getElementById('edit-hidemode');
 const editEnabled = document.getElementById('edit-enabled');
+const editError = document.getElementById('edit-error');
 
 function openEdit(rule) {
   editingRule = rule;
+  editError.hidden = true;
   editDomain.value = rule.domainPattern;
   editSelector.value = rule.selector;
   editHideMode.value = rule.hideMode || 'display-none';
@@ -146,6 +152,13 @@ document.getElementById('edit-save').addEventListener('click', async () => {
 
   const selector = editSelector.value.trim();
   if (!selector) {
+    editSelector.focus();
+    return;
+  }
+  // Same check as the picker's Create (spec §15, §18.2): every selector on a
+  // page shares one style tag, so a broken one hides nothing and breaks the rest.
+  if (!SelectorGenerator.isValidSelector(selector)) {
+    editError.hidden = false;
     editSelector.focus();
     return;
   }
@@ -208,11 +221,25 @@ searchInput.addEventListener('input', renderRules);
 
 // ─── Filter by site from URL param ────────────────────────────────────────────
 
+// "Show rules for this site" in the popup lands here with ?site=<hostname>.
+// It used to drop the hostname into the search box, a substring match against
+// the pattern text: on www.shop.test the rule `shop.test` (and any `shop.*`)
+// never contains the hostname, so the list came up empty while the popup said
+// one rule was active. Filter with the same matcher the rules run through
+// instead (spec §9.1). Disabled rules stay listed so they can be re-enabled.
 const urlParams = new URLSearchParams(location.search);
-const siteFilter = urlParams.get('site');
+let siteFilter = urlParams.get('site');
+const siteChip = document.getElementById('site-chip');
 if (siteFilter) {
-  searchInput.value = siteFilter;
+  document.getElementById('site-chip-host').textContent = siteFilter;
+  siteChip.hidden = false;
 }
+document.getElementById('site-chip-clear').addEventListener('click', () => {
+  siteFilter = null;
+  siteChip.hidden = true;
+  history.replaceState(null, '', 'options.html');
+  renderRules();
+});
 
 // ─── Clear All ────────────────────────────────────────────────────────────────
 
@@ -236,7 +263,9 @@ clearModal.addEventListener('click', (e) => {
 });
 
 document.getElementById('clear-confirm').addEventListener('click', async () => {
-  await chrome.storage.local.set({ rules: [] });
+  // Through the worker's write queue, so a rule the picker saves in the same
+  // moment is ordered against the wipe instead of racing it.
+  await chrome.runtime.sendMessage({ type: 'clearRules' });
   allRules = [];
   closeClearModal();
   renderRules();
@@ -328,9 +357,16 @@ function parseImport(text, filename) {
     if (!data.rules || !Array.isArray(data.rules)) {
       throw new Error('Invalid JSON format. Expected { "rules": [...] }');
     }
+    // An imported file is untrusted: a non-string domainPattern used to reach
+    // the matcher and switch filtering off on every site.
     return data.rules
-      .filter((r) => r.domainPattern && r.selector)
-      .map((r) => ({ domainPattern: r.domainPattern, selector: r.selector, enabled: r.enabled !== false, hideMode: r.hideMode || 'display-none' }));
+      .filter((r) => r && typeof r.domainPattern === 'string' && r.domainPattern.trim() && typeof r.selector === 'string' && r.selector.trim())
+      .map((r) => ({
+        domainPattern: r.domainPattern.trim(),
+        selector: r.selector.trim(),
+        enabled: r.enabled !== false,
+        hideMode: r.hideMode === 'visibility-hidden' ? 'visibility-hidden' : 'display-none',
+      }));
   }
 
   // Parse as adblock-style text
@@ -358,21 +394,29 @@ function showImportPreview(parsed) {
 
   pendingImportRules = parsed.map((r) => ({
     ...r,
+    isInvalid: !SelectorGenerator.isValidSelector(r.selector),
     isDuplicate: existingKeys.has(`${r.domainPattern}##${r.selector}`),
   }));
 
-  const newCount = pendingImportRules.filter((r) => !r.isDuplicate).length;
-  const skipCount = pendingImportRules.filter((r) => r.isDuplicate).length;
+  const newCount = pendingImportRules.filter((r) => !r.isDuplicate && !r.isInvalid).length;
+  const skipCount = pendingImportRules.filter((r) => r.isDuplicate && !r.isInvalid).length;
+  const invalidCount = pendingImportRules.filter((r) => r.isInvalid).length;
 
   importModalBody.innerHTML = `
     <p class="import-summary">
       Found <strong>${pendingImportRules.length}</strong> rule(s) —
-      <strong>${newCount}</strong> new, <strong>${skipCount}</strong> duplicate(s) will be skipped.
+      <strong>${newCount}</strong> new, <strong>${skipCount}</strong> duplicate(s) will be skipped${
+        invalidCount ? `, <strong>${invalidCount}</strong> with an invalid selector will be skipped` : ''
+      }.
     </p>
     <div class="import-preview">
       ${pendingImportRules
         .map((r) => {
-          const tag = r.isDuplicate ? '<span class="import-tag import-tag-skip">SKIP</span>' : '<span class="import-tag import-tag-new">NEW</span>';
+          const tag = r.isInvalid
+            ? '<span class="import-tag import-tag-error">INVALID</span>'
+            : r.isDuplicate
+              ? '<span class="import-tag import-tag-skip">SKIP</span>'
+              : '<span class="import-tag import-tag-new">NEW</span>';
           return `<div class="import-preview-item">${tag} ${escapeHtml(r.domainPattern)}##${escapeHtml(r.selector)}</div>`;
         })
         .join('')}
@@ -402,7 +446,7 @@ importModal.addEventListener('click', (e) => {
 });
 
 document.getElementById('import-confirm').addEventListener('click', async () => {
-  const toAdd = pendingImportRules.filter((r) => !r.isDuplicate);
+  const toAdd = pendingImportRules.filter((r) => !r.isDuplicate && !r.isInvalid);
   if (toAdd.length === 0) {
     closeImportModal();
     return;
@@ -423,9 +467,9 @@ document.getElementById('import-confirm').addEventListener('click', async () => 
     matchedCountAtCreation: null,
   }));
 
-  // Save all at once via background
-  const { rules: existing = [] } = await chrome.storage.local.get('rules');
-  await chrome.storage.local.set({ rules: [...existing, ...newRules] });
+  // One message, one queued write in the worker — writing storage from here
+  // raced the picker's saveRule and dropped its rule (spec §13.2).
+  await chrome.runtime.sendMessage({ type: 'importRules', rules: newRules });
 
   allRules = [...allRules, ...newRules];
   closeImportModal();

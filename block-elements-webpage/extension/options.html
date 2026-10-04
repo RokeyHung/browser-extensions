@@ -67,6 +67,10 @@
 
       <div class="filter-bar">
         <input type="text" class="filter-search" id="search-input" placeholder="Search by domain or selector…" />
+        <span class="site-chip" id="site-chip" hidden>
+          Rules for <strong id="site-chip-host"></strong>
+          <button class="site-chip-clear" id="site-chip-clear" title="Show all filters">✕</button>
+        </span>
       </div>
 
       <div id="rules-container"></div>
@@ -88,6 +92,7 @@
             <label class="form-label">CSS Selector</label>
             <input type="text" class="form-input mono" id="edit-selector" placeholder="e.g. .ad-banner" />
           </div>
+          <div class="import-error-msg" id="edit-error" hidden>Invalid CSS selector. Please edit the selector.</div>
           <div class="form-field">
             <label class="form-label">Hide mode</label>
             <select class="form-select" id="edit-hidemode">
@@ -163,6 +168,8 @@
       </div>
     </div>
 
+    <script src="rule-matcher.js"></script>
+    <script src="selector-generator.js"></script>
     <script src="options.js"></script>
   </body>
 </html>

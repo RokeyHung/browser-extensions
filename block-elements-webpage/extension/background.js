@@ -128,6 +128,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       deleteRule(msg.ruleId).then(sendResponse);
       return true;
 
+    // Bulk writes only come from the options page. A content script runs on
+    // whatever page the user is on, so it never gets to replace or wipe the
+    // whole rule list.
+    case 'importRules':
+      if (!isExtensionPage(sender)) return sendResponse({ success: false, error: 'Not allowed' });
+      importRules(msg.rules).then(sendResponse);
+      return true;
+
+    case 'clearRules':
+      if (!isExtensionPage(sender)) return sendResponse({ success: false, error: 'Not allowed' });
+      clearRules().then(sendResponse);
+      return true;
+
     case 'startPickerInTab':
       startPickerInTab(msg.tabId, msg.mode).then(() => sendResponse({ success: true }));
       return true;
@@ -151,7 +164,10 @@ async function getRulesForUrl(url) {
     if (disabledSites.includes(hostname)) return [];
 
     return rules.filter((rule) => {
-      if (!rule.enabled) return false;
+      // A rule that is not the right shape is skipped on its own. Letting the
+      // matcher throw on it lands in the catch below and returns no rules at
+      // all, for every site.
+      if (!rule.enabled || !hasRuleShape(rule)) return false;
       return matchDomainPattern(rule.domainPattern, hostname) && matchPathPattern(rule.pathPattern, pathname);
     });
   } catch {
@@ -164,13 +180,32 @@ async function getAllRules() {
   return rules;
 }
 
-// saveRule, updateRule and deleteRule are all read-modify-write over the whole
-// rules array. Two that overlap read the same starting state and the second
-// write wins, dropping the first rule without a trace. Measured window is under
-// 2ms, so no click can hit it — but a second picker in another tab, or an import
-// landing while a rule is being created, does not have to be slow to collide.
-// Chaining every write through one promise makes each one read what the
-// previous just wrote.
+// Rules come back from storage and from imported files, so nothing guarantees
+// their shape. The matcher calls string methods on domainPattern; a number there
+// used to throw inside getRulesForUrl and switch filtering off everywhere.
+function hasRuleShape(rule) {
+  return (
+    !!rule &&
+    typeof rule.domainPattern === 'string' &&
+    rule.domainPattern.trim() !== '' &&
+    typeof rule.selector === 'string' &&
+    rule.selector.trim() !== ''
+  );
+}
+
+function isExtensionPage(sender) {
+  return sender.id === chrome.runtime.id && typeof sender.url === 'string' && sender.url.startsWith(chrome.runtime.getURL(''));
+}
+
+// Every write to `rules` — saveRule, updateRule, deleteRule, importRules and
+// clearRules — is read-modify-write over the whole array. Two that overlap read
+// the same starting state and the second write wins, dropping the first rule
+// without a trace. Measured window is under 2ms, so no click can hit it — but a
+// second picker in another tab, or an import landing while a rule is being
+// created, does not have to be slow to collide. Import and Clear All used to
+// write storage straight from the options page, outside this queue, and lost a
+// concurrent picker save 10 times out of 10. Chaining every write through one
+// promise makes each one read what the previous just wrote.
 let writeQueue = Promise.resolve();
 function serialise(work) {
   const run = writeQueue.then(work, work);
@@ -184,6 +219,8 @@ function serialise(work) {
 const saveRule = (rule) => serialise(() => doSaveRule(rule));
 const updateRule = (rule) => serialise(() => doUpdateRule(rule));
 const deleteRule = (ruleId) => serialise(() => doDeleteRule(ruleId));
+const importRules = (incoming) => serialise(() => doImportRules(incoming));
+const clearRules = () => serialise(() => chrome.storage.local.set({ rules: [] }).then(() => ({ success: true })));
 
 async function doSaveRule(rule) {
   const { rules = [] } = await chrome.storage.local.get('rules');
@@ -208,6 +245,17 @@ async function doUpdateRule(updatedRule) {
   rules[idx] = updatedRule;
   await chrome.storage.local.set({ rules });
   return { success: true };
+}
+
+// The options page has already parsed, validated selectors and dropped
+// duplicates; this re-checks the shape because the worker has no DOM to parse
+// selectors with and is the last stop before storage.
+async function doImportRules(incoming) {
+  if (!Array.isArray(incoming)) return { success: false, error: 'Expected an array of rules' };
+  const valid = incoming.filter(hasRuleShape);
+  const { rules = [] } = await chrome.storage.local.get('rules');
+  await chrome.storage.local.set({ rules: [...rules, ...valid] });
+  return { success: true, added: valid.length };
 }
 
 async function doDeleteRule(ruleId) {

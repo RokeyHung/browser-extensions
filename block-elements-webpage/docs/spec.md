@@ -542,6 +542,8 @@ Khuyến nghị MVP:
 - Không remove DOM thật để giảm risk làm hỏng logic website.
 - Có option nâng cao `Remove from DOM` nếu user bật.
 
+Mọi selector của một trang dồn vào **một** style tag, nên một selector hỏng không chỉ tự nó vô hiệu mà kéo theo các rule đứng sau: `.bad {` mở một block lồng nuốt hết phần còn lại, `a /*` mở comment tới cuối sheet. Vì vậy `SelectorGenerator.isValidSelector()` đòi selector qua **cả hai** parser — `querySelector` (preview, đếm match) và `insertRule` của một sheet nháp, phải ra đúng một `CSSStyleRule`. Không parser nào đủ một mình: `.bad {` qua được `insertRule` (CSS nesting) còn `a /*` qua được `querySelector`. Picker (Create), trang options (Edit, Import) và `content.js` (lúc nạp rule) cùng dùng hàm này; `content.js` bỏ qua rule hỏng còn sót trong storage từ trước 1.2.1, mỗi lần nạp rule một lần chứ không chạy lại theo MutationObserver.
+
 ## 8. Data model
 
 Rule được lưu trong `chrome.storage.local`.
@@ -592,6 +594,10 @@ Hiển thị dạng bảng:
 | ------- | -------------- | ------------ | ------ | -------------------- | ------------- |
 | ✓       | `website.*`    | `.ad-banner` | Hide   | `website.com/news/1` | Edit / Delete |
 
+Nút `Show rules for this site` trong popup mở `options.html?site=<hostname>`. Trang options khi đó chỉ liệt kê rule có `domainPattern` khớp hostname đó **theo đúng `matchDomainPattern`** (nạp `rule-matcher.js`), hiện chip `Rules for <hostname>` kèm nút ✕ để xem tất cả. Rule đang tắt vẫn được liệt kê để bật lại được; `pathPattern` không được xét vì lựa chọn này là theo site, không theo trang. Ô search vẫn lọc tiếp trong tập đó.
+
+Trước 1.2.1 hostname được nhét vào ô search, tức so chuỗi con với text của pattern: đứng ở `www.shop.test` thì rule `shop.test` (và mọi rule `shop.*`) không bao giờ chứa chuỗi `www.shop.test`, nên danh sách trống trong khi popup báo 1 rule đang chạy.
+
 ## 9.2. Edit rule
 
 User có thể sửa:
@@ -625,6 +631,12 @@ website.*##.ad-banner
 
 [Delete] [Cancel]
 ```
+
+## 9.4. Import / Clear All
+
+File import là dữ liệu không tin cậy. Với JSON, chỉ nhận rule có `domainPattern` và `selector` là chuỗi khác rỗng; `hideMode` lạ quy về `display-none`. Với cả JSON lẫn dạng text `domain##selector`, rule có selector không qua `isValidSelector()` (§7.2) hiện trong preview với tag `INVALID` và không được import. Import và Clear All đi qua worker (`importRules`, `clearRules` — §13.2), không ghi storage trực tiếp.
+
+Rule hỏng đã nằm trong storage từ trước 1.2.1 vẫn được liệt kê trong bảng để user xoá được, nhưng không bao giờ được áp dụng.
 
 ## 10. Popup UI
 
@@ -781,9 +793,27 @@ Phụ trách:
 - Inject element picker.
 - Gửi matched rules cho content script.
 
-`saveRule`, `updateRule` và `deleteRule` đều là read-modify-write trên **cả mảng** `rules`, nên hai lời gọi chồng nhau cùng đọc một trạng thái gốc rồi ghi đè nhau — rule của lượt trước biến mất không dấu vết. Cả ba nối tiếp qua **một hàng đợi promise** để mỗi lượt đọc được đúng thứ lượt trước vừa ghi. Cửa sổ đua đo được dưới 2ms nên không cú bấm nào chạm tới, nhưng picker mở ở tab thứ hai, hoặc một lượt Import rơi đúng lúc đang tạo rule, thì không cần chậm mới va vào nhau.
+`saveRule`, `updateRule`, `deleteRule`, `importRules` và `clearRules` đều là read-modify-write trên **cả mảng** `rules`, nên hai lời gọi chồng nhau cùng đọc một trạng thái gốc rồi ghi đè nhau — rule của lượt trước biến mất không dấu vết. Cả năm nối tiếp qua **một hàng đợi promise** để mỗi lượt đọc được đúng thứ lượt trước vừa ghi. Cửa sổ đua đo được dưới 2ms nên không cú bấm nào chạm tới, nhưng picker mở ở tab thứ hai, hoặc một lượt Import rơi đúng lúc đang tạo rule, thì không cần chậm mới va vào nhau. Không trang nào được ghi thẳng `rules` vào `chrome.storage.local`: trước 1.2.1 Import và Clear All làm vậy từ trang options, nằm ngoài hàng đợi, và làm mất rule của picker 10/10 lần khi hai thao tác trùng nhau.
+
+`getRulesForUrl` bỏ qua từng rule không đúng hình dạng (`domainPattern` hoặc `selector` không phải chuỗi khác rỗng) thay vì để matcher ném lỗi — lỗi đó rơi vào `catch` chung và trả về **không rule nào cho mọi site**.
 
 `matchDomainPattern` và `matchPathPattern` được **chép nguyên si** sang `rule-matcher.js` vì service worker không nạp được content script. Hai bản phải luôn cho cùng kết quả; hiện chưa có cơ chế chặn drift tự động, nên mọi thay đổi phải sửa cả hai file cùng lúc.
+
+### Message protocol
+
+| `type`             | Gửi từ                  | Payload               | Trả về                                       |
+| ------------------ | ----------------------- | --------------------- | -------------------------------------------- |
+| `getRulesForUrl`   | content script, popup   | `url`                 | mảng rule đang bật khớp URL                  |
+| `getRules`         | options                 | —                     | toàn bộ mảng rule                            |
+| `saveRule`         | picker                  | `rule` (chưa có `id`) | `{ success, rule }`                          |
+| `updateRule`       | options                 | `rule` (đủ `id`)      | `{ success }`                                |
+| `deleteRule`       | options                 | `ruleId`              | `{ success }`                                |
+| `importRules`      | **chỉ trang extension** | `rules` (đã đủ field) | `{ success, added }`                         |
+| `clearRules`       | **chỉ trang extension** | —                     | `{ success }`                                |
+| `startPickerInTab` | popup                   | `tabId`, `mode`       | `{ success }`                                |
+| `reloadRulesInTab` | popup                   | `tabId`               | `{ success }` (worker chuyển tiếp xuống tab) |
+
+`importRules` và `clearRules` thay thế hoặc xoá cả danh sách nên worker kiểm tra `sender.url` phải thuộc chính extension; content script chạy trên trang bất kỳ không được gọi chúng. Worker không có DOM để parse selector, nên với `importRules` nó chỉ kiểm lại hình dạng; selector đã được trang options kiểm (§9.4).
 
 ## 13.3. `content.js`
 
@@ -840,6 +870,8 @@ Phụ trách:
 - Convert wildcard domain sang regex nội bộ.
 - Trả về rules cần apply.
 
+Được nạp ở content script và ở trang options (lọc `Show rules for this site`, §9.1). Service worker giữ bản chép tay riêng (§13.2).
+
 ## 14. Selector generation rules
 
 ## 14.1. Ưu tiên selector ổn định
@@ -884,6 +916,12 @@ Nếu bắt buộc dùng, hiển thị warning:
 ```text id="5y1stz"
 This selector may be unstable because it contains generated class names.
 ```
+
+## 14.3. Escape tên class, id và giá trị attribute
+
+Mọi class, id và giá trị attribute đưa vào selector đều qua `CSS.escape`. Nhiều framework utility-class dùng tên không phải CSS identifier: Tailwind `md:flex` bị đọc thành pseudo-class, `w-1/2` là lỗi cú pháp. Trước 1.2.1, một element chỉ mang những class như vậy và không có id nhận **cả 4 level đều là selector invalid**, nên nút Create bị khoá ở mọi level. Sau khi escape, level mặc định ra `div.md\:flex.w-1\/2.promo`, khớp đúng 1 element.
+
+Giá trị attribute cũng được escape: `aria-label='Close "dialog"'` trước đây sinh ra `button[aria-label="Close "dialog""]`, là selector invalid.
 
 ## 15. Preview & matched count
 
@@ -979,6 +1017,8 @@ Nếu selector không hợp lệ:
 ```text id="vnjige"
 Invalid CSS selector. Please edit the selector.
 ```
+
+Hộp `Edit` trong trang Manage Filters hiện đúng thông báo này và không lưu; trước 1.2.1 nó lưu mọi chuỗi khác rỗng.
 
 ## 18.3. No matched element
 
@@ -1107,6 +1147,8 @@ Khi user click `Preview`, element bị ẩn tạm thời nhưng rule chưa đư�
 ### AC-09: Cancel
 
 Khi user click `Cancel` hoặc nhấn `Esc`, extension thoát Block Element Mode và không lưu rule.
+
+Thoát mode — bằng `Cancel`, `✕` hay `Esc` — phải gỡ **mọi** dấu vết của picker khỏi trang: overlay, highlight, tooltip, panel, style preview và style tô viền các element khớp selector. Trước 1.2.1 style tô viền bị sót lại, các element khớp giữ viền cam tới khi reload.
 
 ### AC-10: Manage filters
 

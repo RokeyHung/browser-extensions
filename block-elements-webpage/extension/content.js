@@ -34,7 +34,11 @@
   }
 
   function applyRules(rules) {
-    const enabledSelectors = rules.filter((r) => r.enabled && r.selector).map((r) => r.selector);
+    // All selectors share one style tag, so a single malformed one would take
+    // every rule after it down too. Rules saved before selectors were validated
+    // at Edit/Import can still be in storage — drop them here, once per load
+    // rather than on every mutation (spec §7.2).
+    const enabledSelectors = rules.filter((r) => r.enabled && SelectorGenerator.isValidSelector(r.selector)).map((r) => r.selector);
 
     appliedSelectors = enabledSelectors;
     injectStyleTag(enabledSelectors);

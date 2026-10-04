@@ -19,12 +19,21 @@ const SelectorGenerator = (() => {
     return Array.from(element.classList).some((c) => isUnstableClass(c));
   }
 
+  // Class names, ids and attribute values go into a selector verbatim only if
+  // they happen to be CSS identifiers. Utility-class frameworks routinely are
+  // not — Tailwind's `md:flex` reads as a pseudo-class and `w-1/2` is a syntax
+  // error — and an element carrying only such classes used to get four invalid
+  // selectors, so Create stayed disabled on every level. CSS.escape also covers
+  // quotes inside attribute values (`aria-label='Close "dialog"'`).
+  const cls = (names) => names.map((c) => '.' + CSS.escape(c)).join('');
+  const attr = (name, value) => `[${name}="${CSS.escape(value)}"]`;
+
   // Level 0: Least specific — single class or tag
   function level0(element) {
     const classes = getStableClasses(element);
-    if (classes.length > 0) return '.' + classes[0];
+    if (classes.length > 0) return cls([classes[0]]);
     const tag = element.tagName.toLowerCase();
-    if (element.getAttribute('role')) return `${tag}[role="${element.getAttribute('role')}"]`;
+    if (element.getAttribute('role')) return tag + attr('role', element.getAttribute('role'));
     return tag;
   }
 
@@ -33,12 +42,12 @@ const SelectorGenerator = (() => {
     const tag = element.tagName.toLowerCase();
     const classes = getStableClasses(element);
 
-    if (element.dataset.testid) return `[data-testid="${element.dataset.testid}"]`;
-    if (element.dataset.test) return `[data-test="${element.dataset.test}"]`;
+    if (element.dataset.testid) return attr('data-testid', element.dataset.testid);
+    if (element.dataset.test) return attr('data-test', element.dataset.test);
     const ariaLabel = element.getAttribute('aria-label');
-    if (ariaLabel) return `${tag}[aria-label="${ariaLabel}"]`;
+    if (ariaLabel) return tag + attr('aria-label', ariaLabel);
 
-    if (classes.length > 0) return tag + '.' + classes.slice(0, 2).join('.');
+    if (classes.length > 0) return tag + cls(classes.slice(0, 2));
     return tag;
   }
 
@@ -47,8 +56,8 @@ const SelectorGenerator = (() => {
     const tag = element.tagName.toLowerCase();
     const classes = getStableClasses(element);
 
-    if (element.id && !isUnstableId(element.id)) return '#' + element.id;
-    if (classes.length > 0) return tag + '.' + classes.join('.');
+    if (element.id && !isUnstableId(element.id)) return '#' + CSS.escape(element.id);
+    if (classes.length > 0) return tag + cls(classes);
     return level1(element);
   }
 
@@ -61,14 +70,14 @@ const SelectorGenerator = (() => {
       let seg = current.tagName.toLowerCase();
 
       if (current.id && !isUnstableId(current.id)) {
-        seg += '#' + current.id;
+        seg += '#' + CSS.escape(current.id);
         parts.unshift(seg);
         break;
       }
 
       const classes = getStableClasses(current);
       if (classes.length > 0) {
-        seg += '.' + classes.join('.');
+        seg += cls(classes);
       } else {
         const parent = current.parentElement;
         if (parent) {
@@ -104,10 +113,19 @@ const SelectorGenerator = (() => {
     }
   }
 
+  // A selector has to survive two parsers: querySelector, which preview and the
+  // matched count use, and the stylesheet the rule ends up in. Neither is enough
+  // alone. `a /*` passes querySelector but, once concatenated into CSS, comments
+  // out every rule after it; `.bad {` fails querySelector but parses as a nested
+  // style rule and swallows the rules after it. So the selector must also parse
+  // as exactly one style rule on a throwaway sheet (spec §7.2).
   function isValidSelector(selector) {
+    if (typeof selector !== 'string' || !selector.trim()) return false;
     try {
       document.querySelector(selector);
-      return true;
+      const sheet = new CSSStyleSheet();
+      sheet.insertRule(`${selector} { display: none !important; }`);
+      return sheet.cssRules.length === 1 && sheet.cssRules[0] instanceof CSSStyleRule;
     } catch {
       return false;
     }

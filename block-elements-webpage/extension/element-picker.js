@@ -66,6 +66,10 @@ const ElementPicker = (() => {
     active = false;
     document.body.classList.remove('ef-picking');
     restorePreview();
+    // The match highlight is a page-level style tag, not part of the picker
+    // chrome, so destroyChrome() does not take it — Cancel, ✕ and Esc used to
+    // leave the orange outline on every matched element until reload.
+    clearHighlights();
     destroyChrome();
     document.removeEventListener('mouseover', onMouseOver, true);
     document.removeEventListener('click', onPageClick, true);
