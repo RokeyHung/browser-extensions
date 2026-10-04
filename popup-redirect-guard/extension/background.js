@@ -52,7 +52,27 @@ const Session = {
   },
 };
 
-const SESSION_KEYS = { opener: 'openerByTab', lastUrl: 'lastTopUrlByTab', gesture: 'lastGestureByTab', restores: 'restoresByTab' };
+const SESSION_KEYS = {
+  opener: 'openerByTab',
+  lastUrl: 'lastTopUrlByTab',
+  gesture: 'lastGestureByTab',
+  restores: 'restoresByTab',
+  blocked: 'blockedUrlsByTab',
+};
+
+// Navigations the browser starts on the user's behalf: the omnibox (a typed
+// URL, a search, a keyword) and bookmarks. Measured on Chrome 154, nothing a
+// page does commits as one of these — window.open, _blank links, forms, iframes,
+// about:blank then location, meta refresh, every same-tab redirect form and
+// history.back() all commit as 'link' — so a page cannot borrow them. Without
+// this the guard judged the user's own typing as the site's doing: typing an
+// address in the protected tab was pulled back (strict, and normal unless a
+// stray page keydown happened to count as a gesture), and since 1.1.5 a Ctrl+T
+// tab — which Chrome gives the current tab as opener — was closed as a popup.
+const BROWSER_TRANSITIONS = new Set(['typed', 'generated', 'keyword', 'keyword_generated', 'auto_bookmark']);
+
+// Blocked URLs remembered per tab for the Back/Forward check below.
+const BLOCKED_URLS_PER_TAB = 20;
 
 // How recently the user must have interacted for a navigation to count as
 // theirs rather than a script's.
@@ -151,12 +171,6 @@ async function recordBlocked({ sourceUrl, targetUrl, reason, mode, action, ruleI
 
 // ─── New-tab / pop-under guard (spec §8.5, §8.6) ─────────────────────────────
 
-chrome.tabs.onCreated.addListener(async (tab) => {
-  if (tab.openerTabId != null) {
-    await Session.patch(SESSION_KEYS.opener, tab.id, tab.openerTabId);
-  }
-});
-
 // Tabs this worker has closed, so the early path and the commit path below
 // never both log and toast the same tab. Entries are not dropped in onRemoved:
 // the commit path's event can still be in flight after removal, and tab ids are
@@ -171,9 +185,22 @@ const closingTabs = new Set();
 // request itself still goes out: cancelling it would take declarativeNetRequest.
 // A tab that starts on about:blank (`window.open('')` then `w.location = ad`)
 // has nothing to judge yet and is left to the commit path.
+//
+// This event is also the only record of who opened a tab. tabs.onCreated's
+// openerTabId, used until 1.1.5, is set for Ctrl+T as well — Chrome treats the
+// current tab as the new tab's opener — so a tab the user opened and typed an
+// address into was judged as a popup from the protected site and closed. This
+// event fires only for tabs a page opened: measured for window.open (popup and
+// noopener included), _blank links, forms, iframes and about:blank popups,
+// never for Ctrl+T or Ctrl+N.
+//
+// The record is queued, not awaited, before deciding: waiting for the storage
+// write first let the ad page commit before the close in 4 of 4 runs. The
+// session queue still orders it before any delete handleOpenedTab queues.
 chrome.webNavigation.onCreatedNavigationTarget.addListener(async (details) => {
-  if (!/^https?:/i.test(details.url)) return;
-  await handleOpenedTab(details.tabId, details.url, details.sourceTabId);
+  const recorded = Session.patch(SESSION_KEYS.opener, details.tabId, details.sourceTabId);
+  if (/^https?:/i.test(details.url)) await handleOpenedTab(details.tabId, details.url, details.sourceTabId);
+  await recorded;
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
@@ -181,6 +208,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   await Session.patch(SESSION_KEYS.lastUrl, tabId, undefined);
   await Session.patch(SESSION_KEYS.gesture, tabId, undefined);
   await Session.patch(SESSION_KEYS.restores, tabId, undefined);
+  await Session.patch(SESSION_KEYS.blocked, tabId, undefined);
   pendingToasts.delete(tabId);
 });
 
@@ -195,6 +223,13 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   // compared against and was waved through.
   const prevUrl = await Session.patch(SESSION_KEYS.lastUrl, tabId, url);
 
+  // The user took this tab somewhere: it is no longer the opener's popup, and
+  // nothing here is the site's doing.
+  if (await isUserNavigation(details)) {
+    await Session.patch(SESSION_KEYS.opener, tabId, undefined);
+    return;
+  }
+
   // Case A: tab was opened by another tab → maybe an unwanted popup.
   const openers = await Session.get(SESSION_KEYS.opener);
   if (openers[tabId] != null) {
@@ -205,6 +240,31 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   // Case B: same-tab navigation → maybe a scripted external redirect.
   await handleSameTabNavigation(tabId, url, prevUrl);
 });
+
+// Back/Forward keep the entry's original transitionType and add the
+// 'forward_back' qualifier: Back to a page the user typed commits as
+// typed+forward_back, Back to one reached by a link as link+forward_back. That
+// last one cannot be told apart from a script's history.back(), and the restore
+// below leaves the blocked ad in session history — measured, an ad script that
+// redirects, gets restored, then calls history.back() lands on the ad as
+// link+forward_back. So Back/Forward is the user's unless it leads to a URL this
+// tab already blocked. A page's own redirect ('client_redirect') never is.
+async function isUserNavigation(details) {
+  const qualifiers = details.transitionQualifiers || [];
+  if (qualifiers.includes('client_redirect')) return false;
+  if (qualifiers.includes('forward_back')) {
+    const blocked = (await Session.get(SESSION_KEYS.blocked))[details.tabId] || [];
+    return !blocked.includes(details.url);
+  }
+  return BROWSER_TRANSITIONS.has(details.transitionType);
+}
+
+async function rememberBlocked(tabId, url) {
+  const all = await Session.get(SESSION_KEYS.blocked);
+  const list = (all[tabId] || []).filter((u) => u !== url);
+  list.push(url);
+  await Session.patch(SESSION_KEYS.blocked, tabId, list.slice(-BLOCKED_URLS_PER_TAB));
+}
 
 async function handleOpenedTab(tabId, targetUrl, openerTabId) {
   // `window.open('')` commits about:blank first, and that commit used to be
@@ -299,6 +359,7 @@ async function handleSameTabNavigation(tabId, url, prevUrl) {
 
   const decision = NG.decide({ sourceUrl: prevUrl, targetUrl: url, trigger: 'scripted-redirect', mode: ctx.rule.mode, hasUserGesture }, ctx);
   if (decision.action !== 'block') return;
+  await rememberBlocked(tabId, url);
 
   // Restore the tab to where it was before the redirect, unless this tab has
   // already been restored too many times in a row.

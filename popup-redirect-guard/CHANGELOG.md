@@ -4,6 +4,22 @@ Tất cả thay đổi đáng chú ý của extension **Popup Redirect Guard** �
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/), version theo [Semantic Versioning](https://semver.org/).
 
+## [1.1.6] - 2026-10-04
+
+### Fixed
+
+- **Mở tab mới (Ctrl+T) rồi gõ địa chỉ thì tab bị đóng ngay** — hồi quy của 1.1.5. Chrome gán `openerTabId` = tab hiện tại cho tab mở bằng Ctrl+T, nên tab đó có bản ghi opener ngay từ `tabs.onCreated`. Trước 1.1.5, commit `chrome://new-tab-page/` của tab mới đi qua nhánh popup và bị xử "không phải web, cho qua", tình cờ xoá bản ghi; 1.1.5 thôi quyết định trên URL không phải web (để sửa cuộc đua `about:blank`), nên bản ghi còn nguyên và địa chỉ user gõ bị xử như popup của site được bảo vệ. Đo bằng phím thật (Ctrl+T, gõ URL, Enter qua Windows SendKeys) trên Chrome 154: commit `typed ["from_address_bar"]` → log `blocked | new tab external` → tab bị đóng, ở cả hai mode; Ctrl+T rồi tìm kiếm cũng vậy (`generated`). Nay bản ghi opener **chỉ** lấy từ `webNavigation.onCreatedNavigationTarget`, sự kiện chỉ bắn cho tab do trang mở: đo bắn cho mọi cách trang mở tab trong fixture (`window.open` kể cả `popup`/`noopener`, link `_blank`, form, iframe, popup `about:blank` + meta refresh), không bắn cho Ctrl+T hay Ctrl+N.
+- **Không rời được site được bảo vệ bằng thanh địa chỉ, bookmark hay nút Back** — lỗi biết trước từ khi revert 1.1.2 ở 1.1.4, và 1.1.5 lan nó sang normal mode. Ở 1.1.4, strict kéo ngược mọi lần gõ URL / tìm kiếm / bookmark / Back trong tab được bảo vệ (`scripted redirect external`); normal chỉ chạy được nhờ may — phím Ctrl của Ctrl+L lọt vào trang và được tính là gesture — nên bấm chuột vào thanh địa chỉ thì vẫn bị kéo về, và bookmark luôn bị kéo về. 1.1.5 đòi gesture phải nhắm vào link, nên cả những lần may đó cũng hết. Nay navigation có `transitionType` `typed` / `generated` / `keyword` / `keyword_generated` / `auto_bookmark` được cho qua ở mọi nhánh, mọi mode. Trước khi tin, đã đo `transitionType` của từng cách trang gây navigation trong fixture (19 cách, gồm meta refresh và `history.back()`): tất cả là `link` — trang không mượn được.
+- **Back/Forward**: entry giữ `transitionType` gốc và thêm `forward_back`. Back về trang tới bằng link (`link ["forward_back"]`) không phân biệt được với `history.back()` của script — và đo được chiêu này: script redirect sang quảng cáo, bị khôi phục (khôi phục để lại URL quảng cáo trong history), rồi gọi `history.back()` → ở 1.1.4 normal, tab **ở lại trang quảng cáo**. Nay Back/Forward được cho qua trừ khi URL đích là URL tab đó đã chặn (20 URL gần nhất mỗi tab, `storage.session`); chiêu trên bị chặn ở cả hai mode, còn Back về trang user tới bằng link hay bằng gõ URL đều đi được.
+
+### Notes
+
+- Ma trận đo, Chrome 154, profile trống, phím thật cho các thao tác trên giao diện trình duyệt, cả strict lẫn normal — mọi dòng đều đúng như mong đợi ở 1.1.6:
+  - **Phải đi được**: Ctrl+T + gõ URL; Ctrl+T + tìm kiếm; Ctrl+N + gõ URL; gõ URL trong chính tab được bảo vệ; tìm kiếm trong chính tab đó; bookmark; Back về trang đã gõ; Back về trang tới bằng link; gõ URL trong tab con same-site do site mở; Ctrl+T vào site được bảo vệ rồi gõ URL khác; F5 và link same-site.
+  - **Phải bị chặn**: cả 19 cách trong fixture quảng cáo cho kết quả y như 1.1.5 (3 cách mới thêm: popup window, `noopener`, meta refresh trong popup `about:blank` — đều bị chặn), cộng chiêu `history.back()` ở trên.
+- Lớp đóng sớm ở `onCreatedNavigationTarget` giờ ghi thêm bản ghi opener; nếu **chờ** ghi xong mới quyết định thì trang quảng cáo kịp commit trước khi tab đóng (4/4 lần), nên bản ghi được xếp hàng mà không chờ. Đo lại cùng lúc trên đường chỉ worker bắt được (shadow root closed), 10 lần mỗi bản: 1.1.5 commit 4/10, đóng ở 34–45ms; 1.1.6 commit 1/10, đóng ở 34–41ms — tương đương, con số 2/10 ghi ở 1.1.5 nằm trong dao động.
+- Lưu ý khi đo lại bằng SendKeys trên máy có bộ gõ tiếng Việt: Telex biến `test` thành `tét` ngay trên omnibox. Địa chỉ cần gõ phải tránh tổ hợp Telex (fixture dùng `bbb.lan`, `site-a.lan`).
+
 ## [1.1.5] - 2026-10-04
 
 ### Fixed

@@ -255,6 +255,8 @@ Trước 1.1.1 `createRule` chép nguyên `DEFAULT_RULE_SETTINGS` vào mọi rul
 
 Normal mode cân bằng giữa usability và protection.
 
+Ở **cả hai mode**, navigation do chính trình duyệt khởi tạo thay user — gõ URL / tìm kiếm / keyword trên omnibox, bookmark, Back/Forward, tab mở bằng Ctrl+T / Ctrl+N — **luôn được cho qua**: đó là user đi chỗ khác, không phải site đẩy user đi (§8.4).
+
 Chặn:
 
 - `window.open` sang external domain.
@@ -528,6 +530,12 @@ Dùng `chrome.webNavigation.onCommitted` để phát hiện tab vừa chuyển s
 
 Đòi `client_redirect` — như bản trước 1.1.1 — cho lọt thẳng 2 trong 3 cách. Thứ thực sự phân biệt "script redirect" với "user bấm link" là **user vừa tương tác hay chưa**: content script báo mỗi `pointerdown`/`keydown` (throttle 250ms) về worker, và navigation không có gesture trong `USER_GESTURE_WINDOW_MS` (1500ms) được coi là của script.
 
+### Navigation do trình duyệt khởi tạo
+
+Trước mọi nhánh, worker cho qua navigation có `transitionType` là `typed`, `generated`, `keyword`, `keyword_generated` hoặc `auto_bookmark` (omnibox và bookmark), và xoá bản ghi opener của tab đó — user đã cầm lái tab. Đo trên Chrome 154: **không** cách nào của trang commit ra các loại này — `window.open` (kể cả `popup`, `noopener`), link `_blank`, form, iframe, `about:blank` rồi đổi `location`, meta refresh, mọi dạng redirect cùng tab và `history.back()` đều là `link` — nên trang không mượn được.
+
+Back/Forward giữ `transitionType` gốc của entry và thêm qualifier `forward_back`: Back về trang user gõ là `typed ["forward_back"]`, Back về trang tới bằng link là `link ["forward_back"]`. Loại sau không phân biệt được với `history.back()` của script, mà việc khôi phục ở trên để lại URL quảng cáo trong session history — đo: script redirect, bị khôi phục, rồi gọi `history.back()` → commit `link ["forward_back"]` sang quảng cáo. Vì vậy `forward_back` được coi là của user **trừ khi** URL đích nằm trong danh sách URL tab đó đã chặn (`blockedUrlsByTab` trong `storage.session`, 20 URL gần nhất mỗi tab). Qualifier `client_redirect` (trang tự redirect) không bao giờ được cho qua theo đường này.
+
 Message là `{ type: 'userGesture', onLink }`; worker lưu `{ at, onLink }` theo tab. Chỉ gesture có `onLink: true` (link, hoặc nút submit/Enter trong form — §6.1) mới làm normal mode cho qua redirect external. Giá trị `onLink` đổi thì gửi ngay, không chờ throttle.
 
 State theo tab (`prevUrl`, opener, thời điểm gesture) nằm trong **`chrome.storage.session`**, không phải `Map` trong bộ nhớ: MV3 tắt worker khi rảnh, mà chính navigation cần kiểm tra lại thường là thứ đánh thức worker — để trong `Map` thì sau mỗi lần worker ngủ, navigation đầu tiên của tab không có `prevUrl` để so và được cho qua.
@@ -594,7 +602,9 @@ log blocked attempt
 Hai điểm vào, cùng một hàm quyết định:
 
 1. `webNavigation.onCreatedNavigationTarget` — có URL đích và `sourceTabId` **trước khi** navigation commit. Đóng ở đây thì trang quảng cáo thường không kịp commit (đo: 2/10 lần, so với 10/10 khi chỉ đóng ở commit), nhưng request tới quảng cáo vẫn đã đi — MV3 không huỷ được nếu không dùng `declarativeNetRequest`. Tab vẫn chớp lên một thoáng vì worker không ngăn được việc tạo tab; đây là lý do lớp trong trang (§8.1–§8.3, §8.7) mới là lớp chính.
-2. `webNavigation.onCommitted` với tab có opener (ghi từ `tabs.onCreated`) — cho tab mở bằng `about:blank` rồi mới đổi URL.
+2. `webNavigation.onCommitted` với tab có bản ghi opener — cho tab mở bằng `about:blank` rồi mới đổi URL.
+
+Bản ghi opener **chỉ** được ghi từ `onCreatedNavigationTarget` (`sourceTabId`), không từ `openerTabId` của `tabs.onCreated`: Chrome gán `openerTabId` cả cho tab mở bằng Ctrl+T (tab hiện tại thành opener), nên tab user tự mở rồi gõ địa chỉ bị coi là popup của site và bị đóng. `onCreatedNavigationTarget` chỉ bắn cho tab do trang mở — đo cho `window.open` (cả `popup`, `noopener`), link `_blank`, form, iframe, popup `about:blank`; không bắn cho Ctrl+T, Ctrl+N. Bản ghi được xếp hàng (không chờ) trước khi quyết định: chờ ghi storage xong mới quyết định làm trang quảng cáo kịp commit trước khi tab bị đóng.
 
 URL không phải http/https (`about:blank`) **không được quyết định** và không xoá bản ghi opener: `window.open('')` commit `about:blank` trước, và nếu lần commit đó xoá opener ("không phải web, cho qua") thì navigation sang quảng cáo ngay sau đó bị coi như navigation cùng tab từ `about:blank` và lọt. Tập `closingTabs` trong bộ nhớ đảm bảo hai điểm vào không cùng log/toast một tab.
 
