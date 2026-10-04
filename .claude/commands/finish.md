@@ -1,0 +1,1 @@
+Prepare a concise completion summary for the current extension change. Inspect the final diff and status, run `make check` when available, confirm required spec/changelog/version updates, and report changed behavior, checks, and any browser/security verification gaps. Preserve unrelated changes. Do not stage, commit, or push.

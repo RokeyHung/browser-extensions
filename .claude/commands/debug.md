@@ -1,0 +1,1 @@
+Diagnose the requested extension issue using the `debug-extension` skill. Trace the failing flow across manifest, worker, content/page contexts, messages, and storage. Reproduce when possible, fix the root cause, run available checks, and report what was and was not verified. Do not commit.

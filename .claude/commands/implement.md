@@ -1,0 +1,1 @@
+Implement the requested change in the relevant extension. Follow the `implement-issue` skill and repository guidance. Inspect existing changes first, keep the diff focused, update behavior docs/version as required, run `make check` when possible, and report verification gaps. Do not commit.

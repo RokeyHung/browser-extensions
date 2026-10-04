@@ -1,0 +1,1 @@
+Verify the requested extension using the `test-extension` skill. Run `make check` and, when Chrome is available, load the unpacked extension and exercise the relevant behavior. Clearly distinguish automated checks from runtime verification; do not claim tests that were not run.
